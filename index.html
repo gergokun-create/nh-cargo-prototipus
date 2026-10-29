@@ -132,6 +132,14 @@ tbody tr.click:hover td{background:var(--accent-soft)}
 .review{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px}
 .photo{aspect-ratio:4/3;max-height:360px;width:100%;border:2px dashed var(--border);border-radius:var(--radius);display:grid;place-items:center;color:var(--muted);text-align:center;background:var(--surface-2);padding:16px}
 .photo svg{width:40px;height:40px;opacity:.6}
+.photo.drop{cursor:pointer}.photo.drop:hover{border-color:var(--accent)}
+.photo.has{border:1px solid var(--border);padding:0;overflow:hidden;background:#000;cursor:zoom-in;aspect-ratio:auto;height:360px;display:block}
+.photo.has img{width:100%;height:100%;object-fit:contain;display:block;transition:transform .2s}
+.ptools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center}
+.ptools .muted{font-size:12px}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.88);display:none;place-items:center;z-index:40;cursor:zoom-out;padding:16px}
+.lb.on{display:grid}
+.lb img{max-width:100%;max-height:100%;object-fit:contain}
 .fld{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
 .fld:last-child{border-bottom:0}
 .fld .k{color:var(--muted);font-size:13px}
@@ -238,6 +246,8 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
   <aside class="drawer" id="drawer"></aside>
 </div>
 <div class="toast" id="toast"></div>
+<input type="file" id="fileIn" accept="image/*" hidden>
+<div class="lb" id="lb"><img alt=""></div>
 
 <script>
 /* ---------- Ikonok ---------- */
@@ -357,19 +367,25 @@ V.orders = () => ph('Megbízások','Forrás: Selexsped VIR (csak olvasás) · a 
   `<div class="filters"><select><option>Minden státusz</option>${Object.keys(STATUS_CLS).map(s=>`<option>${s}</option>`).join('')}</select><select><option>Minden partner</option></select><select><option>Raklapcsere: mind</option><option>Csak raklapcserés</option></select><input type="date"></div>
   <div class="card">${ordersTable(ORDERS)}</div>`;
 
-V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó feltöltése','upload','pri')) +
+V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó feltöltése','upload','pri','data-upload')) +
   `<div class="tabs" id="ptabs">${[['docs','Várt dokumentumok'],['ai','AI-ellenőrzés (1)'],['bal','Partneregyenleg'],['issues','Problémák (1)']].map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>` +
   ({docs:palDocs,ai:palAi,bal:palBal,issues:palIssues})[tab]();
 function palDocs(){return `<div class="card"><div class="tw"><table><thead><tr><th>Megbízás</th><th>Partner</th><th>Várt</th><th>Határidő</th><th>Szabály</th><th>Állapot</th><th></th></tr></thead><tbody>${
-  PDOCS.map(d=>`<tr><td class="mono"><b>${d.no}</b></td><td>${d.partner}</td><td>${chip(d.exp,'acc')}</td><td class="mono">${d.dl}</td><td class="muted">${d.rule}</td><td>${chip(d.st,d.cls)}</td><td>${btn('Feltöltés','camera','sm')}</td></tr>`).join('')}</tbody></table></div></div>`}
+  PDOCS.map(d=>`<tr><td class="mono"><b>${d.no}</b></td><td>${d.partner}</td><td>${chip(d.exp,'acc')}</td><td class="mono">${d.dl}</td><td class="muted">${d.rule}</td><td>${chip(d.st,d.cls)}</td><td>${btn('Feltöltés','camera','sm',`data-upload="${d.no}"`)}</td></tr>`).join('')}</tbody></table></div></div>`}
 function palAi(){
   const f=(k,v,c,warn)=>`<div class="fld"><span class="k">${k}</span><input value="${v}"><div><span class="conf" style="color:var(--${warn?'warn':'ok'})">${Math.round(c*100)}%</span><div class="bar"><i style="width:${c*100}%;background:var(--${warn?'warn':'ok'})"></i></div></div></div>`;
-  return `<div class="card"><div class="card-h"><h3>MINTA-0008 · Minta Partner C Kft.</h3><span class="r">${chip('Emberi jóváhagyás kell','warn')}</span></div><div class="card-b review">
-    <div class="photo"><div>${ic('camera')}<div style="margin-top:8px">A feltöltött raklapjegy / CMR fotója itt jelenik meg</div><div class="muted" style="font-size:12px">nagyítás, forgatás</div></div></div>
+  const d = PDOCS.find(x=>x.no===(PHOTO&&PHOTO.no)) || PDOCS[3];
+  const photo = PHOTO
+    ? `<div><div class="photo has" id="photoBox"><img src="${PHOTO.url}" alt="Feltöltött fotó" style="transform:${rotT(PHOTO.rot)}"></div>
+       <div class="ptools">${btn('Forgatás','refresh','sm','id="rotBtn"')}${btn('Nagyítás','search','sm','id="zoomBtn"')}${btn('Másik fotó','camera','sm','data-upload')}<span class="muted">${PHOTO.name}</span></div>
+       <div class="notice" style="margin:10px 0 0">${ic('alert')}<div><b>Bemutató:</b> a fotó csak ebben a böngészőben látszik, nem kerül sehova feltöltésre, és frissítéskor eltűnik. A kiolvasott mezők mintaértékek.</div></div></div>`
+    : `<div class="photo drop" data-upload>${''}<div>${ic('camera')}<div style="margin-top:8px"><b>Kattints ide a raklapjegy / CMR fotó kiválasztásához</b></div><div class="muted" style="font-size:12px">telefonon a kamera is választható · nagyítás, forgatás</div></div></div>`;
+  return `<div class="card"><div class="card-h"><h3>${d.no} · ${d.partner}</h3><span class="r">${chip(PHOTO?'Emberi jóváhagyás kell':'Fotóra vár','warn')}</span></div><div class="card-b review">
+    ${photo}
     <div><div class="muted" style="font-size:13px;margin-bottom:6px">AI által kiolvasott adatok. A sárga mezőket ellenőrizni kell.</div>
       ${f('Darabszám','21',.94)}${f('Típus','EUR',.98)}${f('Átadó','—',.58,1)}${f('Átvevő','Minta Partner C Kft.',.81)}${f('Aláírás / pecsét','Aláírás igen, pecsét bizonytalan',.62,1)}
       <div class="notice" style="margin:14px 0 0">${''}<div><b>Eltérés:</b> várt 24 EUR, kiolvasva 21 EUR → jóváhagyás után 3 db hiány nyílik problémaként.</div></div>
-      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri')}${btn('Elutasítás, új fotó','x')}</div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri')}${btn('Elutasítás, új fotó','x','','data-upload')}</div>
     </div></div></div>`}
 function palBal(){return `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Egyenleg (EUR)</th><th>Visszaviteli szabály</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
   BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono" style="color:${b.out<0?'var(--bad)':'inherit'}">${b.out>0?'+':''}${b.out}</td><td class="muted">${b.ret}</td><td class="mono">${b.due}</td><td>${chip({ok:'Rendben',warn:'Közeleg',bad:'Lejárt'}[b.st],b.st)}</td></tr>`).join('')}</tbody></table></div></div>
@@ -447,17 +463,36 @@ function closeOrder(){document.getElementById('drawerWrap').classList.remove('op
 
 /* ---------- Router és események ---------- */
 let palTab='docs';
+/* Bemutató-feltöltés: a fotó csak a böngészőben marad (object URL), nem megy szerverre */
+let PHOTO=null, upNo=null;
+// 90/270 foknál a kép élei felcserélődnek, ezért kicsinyítjük, hogy beférjen a keretbe
+const rotT = (r, el) => { if(!(r%180) || !el) return `rotate(${r}deg)`; const w=el.clientWidth||1, h=el.clientHeight||1; return `rotate(${r}deg) scale(${Math.min(w/h,h/w)})`; };
+const fileIn=document.getElementById('fileIn'), lb=document.getElementById('lb');
+fileIn.addEventListener('change',()=>{
+  const f=fileIn.files[0]; fileIn.value=''; if(!f) return;
+  if(!f.type.startsWith('image/')) return toast('Csak képfájl tölthető fel.');
+  if(PHOTO) URL.revokeObjectURL(PHOTO.url);
+  PHOTO={url:URL.createObjectURL(f),name:f.name,no:upNo||(PHOTO&&PHOTO.no)||'MINTA-0008',rot:0};
+  palTab='ai';
+  if(location.hash!=='#pallets') location.hash='#pallets'; else route();
+  toast('Fotó betöltve – AI-ellenőrzés (bemutató)');
+});
 function route(){
   const v=(location.hash||'#dash').slice(1); const view=V[v]?v:'dash';
   drawNav(view); closeOrder();
   document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
   drawCustom(); window.scrollTo(0,0);
+  const pb=document.getElementById('photoBox'); if(pb) pb.querySelector('img').style.transform=rotT(PHOTO.rot,pb);
 }
 let tt; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
 document.addEventListener('click',e=>{
   const t=e.target;
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
+  const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  if(t.closest('#rotBtn')){PHOTO.rot=(PHOTO.rot+90)%360;document.querySelector('#photoBox img').style.transform=rotT(PHOTO.rot,document.getElementById('photoBox'));return}
+  if(t.closest('#zoomBtn')||t.closest('#photoBox')){const im=lb.querySelector('img');im.src=PHOTO.url;lb.classList.add('on');im.style.transform=rotT(PHOTO.rot,lb);return}
+  if(t.closest('#lb')) return lb.classList.remove('on');
   const tab=t.closest('[data-tab]'); if(tab){palTab=tab.dataset.tab;return route()}
   const s=t.closest('[data-set]'); if(s){S[s.dataset.set]=s.dataset.val;apply();return drawCustom()}
   const a=t.closest('[data-acc]'); if(a){S.accent=a.dataset.acc;apply();return drawCustom()}
