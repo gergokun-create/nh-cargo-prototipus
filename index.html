@@ -246,7 +246,7 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
   <aside class="drawer" id="drawer"></aside>
 </div>
 <div class="toast" id="toast"></div>
-<input type="file" id="fileIn" accept="image/*" hidden>
+<input type="file" id="fileIn" accept="image/*,application/pdf,.pdf" hidden>
 <div class="lb" id="lb"><img alt=""></div>
 
 <script>
@@ -367,7 +367,7 @@ V.orders = () => ph('Megbízások','Forrás: Selexsped VIR (csak olvasás) · a 
   `<div class="filters"><select><option>Minden státusz</option>${Object.keys(STATUS_CLS).map(s=>`<option>${s}</option>`).join('')}</select><select><option>Minden partner</option></select><select><option>Raklapcsere: mind</option><option>Csak raklapcserés</option></select><input type="date"></div>
   <div class="card">${ordersTable(ORDERS)}</div>`;
 
-V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó feltöltése','upload','pri','data-upload')) +
+V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó / PDF feltöltése','upload','pri','data-upload')) +
   `<div class="tabs" id="ptabs">${[['docs','Várt dokumentumok'],['ai','AI-ellenőrzés (1)'],['bal','Partneregyenleg'],['issues','Problémák (1)']].map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>` +
   ({docs:palDocs,ai:palAi,bal:palBal,issues:palIssues})[tab]();
 function palDocs(){return `<div class="card"><div class="tw"><table><thead><tr><th>Megbízás</th><th>Partner</th><th>Várt</th><th>Határidő</th><th>Szabály</th><th>Állapot</th><th></th></tr></thead><tbody>${
@@ -376,10 +376,12 @@ function palAi(){
   const f=(k,v,c,warn)=>`<div class="fld"><span class="k">${k}</span><input value="${v}"><div><span class="conf" style="color:var(--${warn?'warn':'ok'})">${Math.round(c*100)}%</span><div class="bar"><i style="width:${c*100}%;background:var(--${warn?'warn':'ok'})"></i></div></div></div>`;
   const d = PDOCS.find(x=>x.no===(PHOTO&&PHOTO.no)) || PDOCS[3];
   const photo = PHOTO
-    ? `<div><div class="photo has" id="photoBox"><img src="${PHOTO.url}" alt="Feltöltött fotó" style="transform:${rotT(PHOTO.rot)}"></div>
-       <div class="ptools">${btn('Forgatás','refresh','sm','id="rotBtn"')}${btn('Nagyítás','search','sm','id="zoomBtn"')}${btn('Másik fotó','camera','sm','data-upload')}<span class="muted">${PHOTO.name}</span></div>
-       <div class="notice" style="margin:10px 0 0">${ic('alert')}<div><b>Bemutató:</b> a fotó csak ebben a böngészőben látszik, nem kerül sehova feltöltésre, és frissítéskor eltűnik. A kiolvasott mezők mintaértékek.</div></div></div>`
-    : `<div class="photo drop" data-upload>${''}<div>${ic('camera')}<div style="margin-top:8px"><b>Kattints ide a raklapjegy / CMR fotó kiválasztásához</b></div><div class="muted" style="font-size:12px">telefonon a kamera is választható · nagyítás, forgatás</div></div></div>`;
+    ? `<div><div class="photo has" id="photoBox"><img src="${PHOTO.img}" alt="Feltöltött dokumentum" style="transform:${rotT(PHOTO.rot)}"></div>
+       <div class="ptools">${btn('Forgatás','refresh','sm','id="rotBtn"')}${btn('Nagyítás','search','sm','id="zoomBtn"')}${
+         PHOTO.pdf ? `${btn('‹','','sm','id="pgPrev"'+(PHOTO.page<=1?' disabled':''))}<span class="mono">${PHOTO.page} / ${PHOTO.pages} oldal</span>${btn('›','','sm','id="pgNext"'+(PHOTO.page>=PHOTO.pages?' disabled':''))}<a class="btn sm" href="${PHOTO.url}" target="_blank" rel="noopener">${ic('ext')}Eredeti PDF</a>` : ''
+       }${btn('Másik fájl','upload','sm','data-upload')}<span class="muted">${PHOTO.pdf?'PDF · ':''}${PHOTO.name}</span></div>
+       <div class="notice" style="margin:10px 0 0">${ic('alert')}<div><b>Bemutató:</b> a fájl csak ebben a böngészőben látszik, nem kerül sehova feltöltésre, és frissítéskor eltűnik. A kiolvasott mezők mintaértékek.</div></div></div>`
+    : `<div class="photo drop" data-upload>${''}<div>${ic('upload')}<div style="margin-top:8px"><b>Kattints ide a raklapjegy / CMR kiválasztásához</b></div><div class="muted" style="font-size:12px">PDF vagy fotó · telefonon a kamera is választható</div></div></div>`;
   return `<div class="card"><div class="card-h"><h3>${d.no} · ${d.partner}</h3><span class="r">${chip(PHOTO?'Emberi jóváhagyás kell':'Fotóra vár','warn')}</span></div><div class="card-b review">
     ${photo}
     <div><div class="muted" style="font-size:13px;margin-bottom:6px">AI által kiolvasott adatok. A sárga mezőket ellenőrizni kell.</div>
@@ -468,15 +470,47 @@ let PHOTO=null, upNo=null;
 // 90/270 foknál a kép élei felcserélődnek, ezért kicsinyítjük, hogy beférjen a keretbe
 const rotT = (r, el) => { if(!(r%180) || !el) return `rotate(${r}deg)`; const w=el.clientWidth||1, h=el.clientHeight||1; return `rotate(${r}deg) scale(${Math.min(w/h,h/w)})`; };
 const fileIn=document.getElementById('fileIn'), lb=document.getElementById('lb');
-fileIn.addEventListener('change',()=>{
+/* PDF: a pdf.js csak akkor töltődik be, ha PDF-et választanak; az oldalt képpé rendereljük, így a forgatás/nagyítás ugyanúgy működik */
+const PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+let pdfLib=null;
+async function loadPdfJs(){
+  if(pdfLib) return pdfLib;
+  await new Promise((res,rej)=>{const s=document.createElement('script');s.src=PDFJS+'pdf.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});
+  pdfLib=window.pdfjsLib; pdfLib.GlobalWorkerOptions.workerSrc=PDFJS+'pdf.worker.min.js';
+  return pdfLib;
+}
+async function renderPdfPage(p){
+  const page=await p.doc.getPage(p.page);
+  const scale=Math.min(2.5,1600/page.getViewport({scale:1}).width), vp=page.getViewport({scale});
+  const c=document.createElement('canvas'); c.width=vp.width; c.height=vp.height;
+  const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+  await page.render({canvasContext:ctx,viewport:vp}).promise;
+  p.img=c.toDataURL('image/jpeg',.9);
+}
+fileIn.addEventListener('change',async()=>{
   const f=fileIn.files[0]; fileIn.value=''; if(!f) return;
-  if(!f.type.startsWith('image/')) return toast('Csak képfájl tölthető fel.');
+  const isPdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);
+  if(!isPdf&&!f.type.startsWith('image/')) return toast('Csak kép vagy PDF tölthető fel.');
+  const url=URL.createObjectURL(f);
+  const next={url,img:url,name:f.name,no:upNo||(PHOTO&&PHOTO.no)||'MINTA-0008',rot:0,pdf:isPdf,page:1,pages:1};
+  if(isPdf){
+    toast('PDF betöltése…');
+    try{
+      const lib=await loadPdfJs();
+      next.doc=await lib.getDocument({data:await f.arrayBuffer()}).promise;
+      next.pages=next.doc.numPages;
+      await renderPdfPage(next);
+    }catch(e){ URL.revokeObjectURL(url); return toast('A PDF nem nyitható meg.'); }
+  }
   if(PHOTO) URL.revokeObjectURL(PHOTO.url);
-  PHOTO={url:URL.createObjectURL(f),name:f.name,no:upNo||(PHOTO&&PHOTO.no)||'MINTA-0008',rot:0};
-  palTab='ai';
+  PHOTO=next; palTab='ai';
   if(location.hash!=='#pallets') location.hash='#pallets'; else route();
-  toast('Fotó betöltve – AI-ellenőrzés (bemutató)');
+  toast((isPdf?'PDF':'Fotó')+' betöltve – AI-ellenőrzés (bemutató)');
 });
+async function gotoPage(d){
+  const n=PHOTO.page+d; if(n<1||n>PHOTO.pages) return;
+  PHOTO.page=n; await renderPdfPage(PHOTO); route();
+}
 function route(){
   const v=(location.hash||'#dash').slice(1); const view=V[v]?v:'dash';
   drawNav(view); closeOrder();
@@ -490,8 +524,10 @@ document.addEventListener('click',e=>{
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  if(t.closest('#pgPrev')) return gotoPage(-1);
+  if(t.closest('#pgNext')) return gotoPage(1);
   if(t.closest('#rotBtn')){PHOTO.rot=(PHOTO.rot+90)%360;document.querySelector('#photoBox img').style.transform=rotT(PHOTO.rot,document.getElementById('photoBox'));return}
-  if(t.closest('#zoomBtn')||t.closest('#photoBox')){const im=lb.querySelector('img');im.src=PHOTO.url;lb.classList.add('on');im.style.transform=rotT(PHOTO.rot,lb);return}
+  if(t.closest('#zoomBtn')||t.closest('#photoBox')){const im=lb.querySelector('img');im.src=PHOTO.img;lb.classList.add('on');im.style.transform=rotT(PHOTO.rot,lb);return}
   if(t.closest('#lb')) return lb.classList.remove('on');
   const tab=t.closest('[data-tab]'); if(tab){palTab=tab.dataset.tab;return route()}
   const s=t.closest('[data-set]'); if(s){S[s.dataset.set]=s.dataset.val;apply();return drawCustom()}
