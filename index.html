@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NH Cargo Rendszer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --accent:#b8963e; --accent-ink:#1a1609; --accent-soft:rgba(184,150,62,.14);
+  --bg:#f5f4ef; --surface:#ffffff; --surface-2:#faf9f5; --text:#1c1e22; --muted:#6a6e77; --border:#e5e2d8;
+  --sb-bg:#14171c; --sb-text:#cfc9b6; --sb-muted:#8a8676; --sb-hover:rgba(203,178,106,.10); --sb-border:#262a31;
+  --ok:#2f7d5b; --ok-soft:rgba(47,125,91,.12); --warn:#b7791f; --warn-soft:rgba(183,121,31,.14);
+  --bad:#c0392b; --bad-soft:rgba(192,57,43,.12); --info:#2b6cb0; --info-soft:rgba(43,108,176,.12);
+  --radius:10px; --pad:16px; --row:44px;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1014; --surface:#161920; --surface-2:#1b1f27; --text:#e8e6df; --muted:#9a9ca3; --border:#272b33;
+    --accent-soft:rgba(203,178,106,.16); --shadow:none;
+    --ok-soft:rgba(72,187,120,.16); --warn-soft:rgba(236,180,80,.16); --bad-soft:rgba(240,100,90,.16); --info-soft:rgba(99,160,230,.16);
+    --ok:#5cc591; --warn:#e3b153; --bad:#ef7a6e; --info:#7fb2ec;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1014; --surface:#161920; --surface-2:#1b1f27; --text:#e8e6df; --muted:#9a9ca3; --border:#272b33;
+  --accent-soft:rgba(203,178,106,.16); --shadow:none;
+  --ok-soft:rgba(72,187,120,.16); --warn-soft:rgba(236,180,80,.16); --bad-soft:rgba(240,100,90,.16); --info-soft:rgba(99,160,230,.16);
+  --ok:#5cc591; --warn:#e3b153; --bad:#ef7a6e; --info:#7fb2ec;
+}
+:root[data-sidebar="light"]{ --sb-bg:var(--surface); --sb-text:var(--text); --sb-muted:var(--muted); --sb-hover:var(--accent-soft); --sb-border:var(--border); }
+:root[data-density="compact"]{ --pad:12px; --row:36px; }
+
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+a{color:inherit}
+.app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+
+/* Sidebar */
+.sb{background:var(--sb-bg);color:var(--sb-text);border-right:1px solid var(--sb-border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sb-logo{padding:22px 20px 18px;border-bottom:1px solid var(--sb-border)}
+.sb-logo svg{width:100%;height:auto;display:block}
+.sb-sub{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-muted);margin-top:8px}
+.nav{padding:12px 10px;display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+.nav-h{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-muted);padding:14px 10px 6px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;text-decoration:none;color:var(--sb-text);font-weight:500}
+.nav a:hover{background:var(--sb-hover)}
+.nav a.on{background:var(--sb-hover);color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.nav a .cnt{margin-left:auto;font-size:11px;background:var(--bad);color:#fff;border-radius:999px;padding:1px 7px}
+.nav svg{width:18px;height:18px;flex:none}
+.sb-foot{padding:14px 20px;border-top:1px solid var(--sb-border);font-size:12px;color:var(--sb-muted)}
+
+/* Topbar */
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;gap:12px;padding:12px 24px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:5}
+.top .mlogo{display:none;width:34px;height:34px}
+.search{flex:1;max-width:460px;display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--muted)}
+.search input{border:0;background:transparent;outline:0;flex:1;min-width:0;color:var(--text)}
+.top .sp{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);color:var(--muted);white-space:nowrap}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.iconbtn{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:grid;place-items:center;cursor:pointer;position:relative}
+.iconbtn svg{width:18px;height:18px}
+.iconbtn .badge{position:absolute;top:-4px;right:-4px;background:var(--bad);color:#fff;font-size:10px;border-radius:999px;padding:0 5px;line-height:16px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:13px}
+
+/* Content */
+.content{padding:24px;max-width:1400px;width:100%}
+.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.ph h1{font-size:22px;margin:0;font-weight:700;letter-spacing:-.01em}
+.ph p{margin:4px 0 0;color:var(--muted)}
+.ph .act{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.pri:hover{filter:brightness(1.05)}
+.btn.sm{padding:5px 9px;font-size:13px}
+.btn svg{width:16px;height:16px}
+
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.two{grid-template-columns:2fr 1fr}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+.card-h{display:flex;align-items:center;gap:8px;padding:14px var(--pad);border-bottom:1px solid var(--border)}
+.card-h h3{margin:0;font-size:15px;font-weight:600}
+.card-h .r{margin-left:auto}
+.card-b{padding:var(--pad)}
+.kpi{padding:var(--pad)}
+.kpi .l{color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px}
+.kpi .l svg{width:16px;height:16px;color:var(--accent)}
+.kpi .v{font-size:28px;font-weight:700;margin-top:6px;letter-spacing:-.02em}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;text-align:left;padding:10px var(--pad);border-bottom:1px solid var(--border);white-space:nowrap;background:var(--surface-2)}
+td{padding:0 var(--pad);height:var(--row);border-bottom:1px solid var(--border);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover td{background:var(--accent-soft)}
+.mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.muted{color:var(--muted)}
+.chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}.chip.info{background:var(--info-soft);color:var(--info)}
+.chip.acc{background:var(--accent-soft);color:var(--accent)}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 12px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button.on{color:var(--text);border-color:var(--accent)}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.filters select,.filters input,.field input,.field select{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 10px}
+
+.list{display:flex;flex-direction:column}
+.li{display:flex;gap:12px;align-items:flex-start;padding:12px var(--pad);border-bottom:1px solid var(--border)}
+.li:last-child{border-bottom:0}
+.li .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;flex:none}
+.li .ic svg{width:16px;height:16px}
+.li .t{font-weight:600}
+.li .d{color:var(--muted);font-size:13px}
+.li .tm{margin-left:auto;font-size:12px;color:var(--muted);white-space:nowrap}
+
+.notice{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--radius);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);margin-bottom:16px;font-size:13px}
+.notice svg{width:18px;height:18px;flex:none;color:var(--accent);margin-top:1px}
+
+/* AI review */
+.review{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px}
+.photo{aspect-ratio:4/3;max-height:360px;width:100%;border:2px dashed var(--border);border-radius:var(--radius);display:grid;place-items:center;color:var(--muted);text-align:center;background:var(--surface-2);padding:16px}
+.photo svg{width:40px;height:40px;opacity:.6}
+.fld{display:grid;grid-template-columns:150px 1fr auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)}
+.fld:last-child{border-bottom:0}
+.fld .k{color:var(--muted);font-size:13px}
+.fld input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px}
+.conf{font-size:12px;font-weight:600}
+.bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:4px;min-width:70px}
+.bar i{display:block;height:100%}
+
+/* Providers */
+.prov{grid-template-columns:repeat(3,minmax(0,1fr))}
+.prov .card-b{display:flex;flex-direction:column;gap:8px}
+.prov h4{margin:0;font-size:15px}
+
+/* Drawer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:.2s;z-index:20}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(520px,100%);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:.25s;z-index:21;display:flex;flex-direction:column}
+.open .scrim{opacity:1;pointer-events:auto}.open .drawer{transform:none}
+.dr-h{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.dr-h h2{margin:0;font-size:18px}
+.dr-b{padding:20px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:18px}
+.sec h5{margin:0 0 8px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:14px}
+.kv .k{color:var(--muted)}
+.route{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--accent);margin-left:6px;padding-left:16px}
+.route div{position:relative;padding:4px 0 12px}
+.route div::before{content:"";position:absolute;left:-23px;top:8px;width:10px;height:10px;border-radius:50%;background:var(--surface);border:2px solid var(--accent)}
+
+/* Settings */
+.set-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;font-weight:600}
+.field .hint{font-size:12px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--surface);padding:7px 12px;cursor:pointer;border-right:1px solid var(--border)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:var(--accent-ink);font-weight:600}
+.swatches{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sw{width:30px;height:30px;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border);cursor:pointer}
+.sw.on{box-shadow:0 0 0 2px var(--accent)}
+.sw-in{width:36px;height:32px;border:1px solid var(--border);border-radius:8px;padding:2px;background:var(--surface);cursor:pointer}
+pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;overflow:auto;max-height:200px;margin:0}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;z-index:30;pointer-events:none;max-width:calc(100% - 32px)}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+/* Mobile bottom nav */
+.bnav{display:none}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.review,.set-grid{grid-template-columns:1fr}.prov{grid-template-columns:1fr}}
+@media (max-width:760px){
+  .app{grid-template-columns:1fr}
+  .sb{display:none}
+  .top{padding:10px 16px}
+  .top .mlogo{display:block}
+  .top .pill,.top .hide-m{display:none}
+  .content{padding:16px 16px 90px}
+  .ph h1{font-size:19px}
+  .ph .act{margin-left:0;width:100%}
+  .kpi .v{font-size:24px}
+  .fld{grid-template-columns:1fr;gap:4px}
+  .kv{grid-template-columns:110px 1fr}
+  .bnav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--sb-bg);border-top:1px solid var(--sb-border);z-index:10;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .bnav a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--sb-muted);text-decoration:none;padding:4px 0}
+  .bnav a svg{width:20px;height:20px}
+  .bnav a.on{color:var(--accent)}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="sb">
+    <div class="sb-logo">
+      <svg viewBox="0 0 3147.78 1004.93" xmlns="http://www.w3.org/2000/svg" aria-label="NH Cargo">
+        <g transform="scale(7.389162561576355) translate(10, 10)">
+          <defs><linearGradient id="nhcGold"><stop stop-color="#905e26" offset="0"/><stop stop-color="#f5ec9b" offset="0.5"/><stop stop-color="#905e26" offset="1"/></linearGradient></defs>
+          <g transform="matrix(1.1363607792886734,0,0,1.1363607792886734,-6.818034629561315,1.1815578924370786)" fill="url(#nhcGold)"><g transform="translate(0,-952.36218)"><path fill-rule="evenodd" d="m 49.968637,958.36325 c -0.19079,0 -0.36611,0.041 -0.5625,0.094 l -41.9999993,13.2187 c -1.28606,0.3449 -1.40625,1.1624 -1.40625,2.1876 l 0,57.24995 c 0,0.971 0.17559,1.5764 1.40625,1.9062 l 41.9999993,13.25 c 0.58876,0.1911 0.9862,0.042 1.375,-0.062 l 41.8125,-13.1883 c 0.80696,-0.2509 1.40473,-1.0611 1.40625,-1.9062 3e-4,-0.021 3e-4,-0.042 0,-0.063 l 0,-57.31235 c -0.021,-1.3397 -0.052,-1.5099 -1.65625,-2.125 l -41.75,-13.1563 c -0.22795,-0.061 -0.43421,-0.096 -0.625,-0.094 z m -39.9687493,17.9687 37.9999993,11.9687 0,28.12495 -37.9999993,11.9688 0,-52.06245 z m 79.9999993,0 0,52.06245 -38,-11.9688 0,-28.12495 38,-11.9687 z"/></g></g>
+          <g transform="matrix(1,0,0,1,405,0)" fill="url(#nhcGold)"><rect x="-285" y="0" width="5" height="116"/></g>
+          <g transform="matrix(2.351834363337452,0,0,2.351834363337452,135.17780033401388,15.359360244065973)" fill="#cbb26a"><path d="M10.36 6 l2.92 0 l0 14 l-2.22 0 l-6.94 -8.68 l0 8.68 l-2.92 0 l0 -14 l2.26 0 l6.9 8.7 l0 -8.7 z M24.240000000000002 6 l2.92 0 l0 14 l-2.920 0 l0 -5.66 l-5.64 0 l0 5.66 l-2.92 0 l0 -14 l2.92 0 l0 5.66 l5.64 0 l0 -5.66 z M47.32 18.5 c-1.24 1.12 -2.9 1.7 -4.76 1.7 c-3.92 0 -7.3 -2.94 -7.3 -7.2 s3.38 -7.2 7.3 -7.2 c1.84 0 3.48 0.6 4.68 1.66 l-1.76 1.98 c-0.74 -0.52 -1.74 -0.9 -2.76 -0.9 c-2.52 0 -4.42 1.86 -4.42 4.46 s1.9 4.46 4.42 4.46 c1.06 0 2.1 -0.4 2.86 -1 z M60.4 20 l-1.06 -2.5 l-6.76 0 l-1.06 2.5 l-3.1 0 l6.22 -14 l2.64 0 l6.24 14 l-3.12 0 z M53.599999999999994 15.120000000000001 l4.72 0 l-2.36 -5.54 z M76.14 20 l-3.1 0 l-2.98 -4.66 l-0.04 0 l-1.98 0 l0 4.66 l-2.92 0 l0 -14 l4.9 0 c3.14 0 5.18 1.9 5.18 4.76 c0 1.9 -0.92 3.32 -2.48 4.04 z M68.03999999999999 8.68 l0 4.14 l1.8 0 c1.44 0 2.44 -0.56 2.44 -2.06 c0 -1.48 -1 -2.08 -2.44 -2.08 l-1.8 0 z M91.11999999999999 12.559999999999999 c0.62 4.7 -2.44 7.64 -6.22 7.64 c-3.98 0 -7.26 -2.94 -7.26 -7.2 s3.36 -7.2 7.26 -7.2 c1.86 0 3.5 0.6 4.7 1.66 l-1.76 1.98 c-0.74 -0.52 -1.74 -0.9 -2.76 -0.9 c-2.540 0 -4.4 1.86 -4.4 4.46 s1.8 4.46 4.22 4.46 c1.84 0 3.12 -0.66 3.52 -2.42 l-3.3 0 l0 -2.48 l6 0 z M100.24 5.800000000000001 c3.9 0 7.26 2.94 7.26 7.2 s-3.36 7.2 -7.26 7.2 s-7.26 -2.94 -7.26 -7.2 s3.36 -7.2 7.26 -7.2 z M100.24 17.46 c2.36 0 4.22 -1.86 4.22 -4.46 s-1.86 -4.46 -4.22 -4.46 s-4.22 1.86 -4.22 4.460 s1.86 4.46 4.22 4.46 z"/></g>
+          <g transform="matrix(0.9144625538206113,0,0,0.9144625538206113,136.9026456548973,68.75689256421711)" fill="#cbb26a"><path d="M15.1 12.440000000000001 q0 -1.6 -0.82 -2.9 q-0.78 -1.26 -2.13 -1.98 t-2.93 -0.72 q-1.64 0 -2.99 0.74 t-2.11 2.02 q-0.78 1.34 -0.78 2.98 q0 1.56 0.84 2.88 q0.8 1.24 2.15 1.97 t2.92 0.73 t2.92 -0.76 t2.13 -2.04 q0.8 -1.34 0.8 -2.92 z M17.26 12.559999999999999 q0 2.16 -1.12 3.98 q-1.08 1.74 -2.93 2.77 t-3.99 1.03 q-2.22 0 -4.08 -1.08 q-1.82 -1.04 -2.86 -2.86 q-1.08 -1.86 -1.08 -4.08 q0 -2.14 1.14 -3.94 q1.08 -1.72 2.93 -2.73 t3.97 -1.01 q2.18 0 4.04 1.06 q1.82 1.04 2.88 2.82 q1.1 1.86 1.1 4.04 z M27.16 20.34 q-2.1 0 -3.61 -0.73 t-2.3 -2.11 t-0.79 -3.3 l0 -9.12 l2.16 0 l0 9.12 q0 1.92 1.18 2.94 t3.36 1.02 t3.36 -1.02 t1.18 -2.94 l0 -9.12 l2.16 0 l0 9.12 q0 1.92 -0.79 3.3 t-2.3 2.11 t-3.61 0.73 z M49.16 7.279999999999999 l-5.26 0 l0 12.72 l-2.12 0 l0 -12.72 l-5.32 0 l0 -2.2 l12.7 0 l0 2.2 z M70.28 12.440000000000001 q0 -1.6 -0.82 -2.9 q-0.78 -1.26 -2.13 -1.98 t-2.93 -0.72 q-1.64 0 -2.99 0.74 t-2.11 2.02 q-0.78 1.34 -0.78 2.98 q0 1.56 0.84 2.88 q0.8 1.24 2.15 1.97 t2.92 0.73 t2.92 -0.76 t2.13 -2.04 q0.8 -1.34 0.8 -2.92 z M72.44 12.559999999999999 q0 2.16 -1.12 3.98 q-1.08 1.74 -2.93 2.77 t-3.99 1.03 q-2.22 0 -4.08 -1.08 q-1.82 -1.04 -2.86 -2.86 q-1.08 -1.86 -1.08 -4.08 q0 -2.14 1.14 -3.94 q1.08 -1.72 2.93 -2.73 t3.97 -1.01 q2.18 0 4.04 1.06 q1.82 1.04 2.88 2.82 q1.1 1.86 1.1 4.04 z M78.02 14.02 l0 5.98 l-2.18 0 l0 -14.92 l10.5 0 l0 2.2 l-8.32 0 l0 4.52 q0.62 -0.36 1.38 -0.48 q0.56 -0.1 1.44 -0.1 l3.26 0 l0 2.22 l-3.26 0 q-0.82 0 -1.44 0.1 q-0.76 0.14 -1.38 0.48 z M97.32000000000001 7.279999999999999 l0 4.56 q0.62 -0.36 1.4 -0.5 q0.58 -0.1 1.44 -0.1 l2.56 0 q1.04 0 1.63 -0.52 t0.59 -1.54 q0 -1.9 -2.22 -1.9 l-5.4 0 z M97.32000000000001 14.059999999999999 l0 3.76 l5.62 0 q0.66 0 1.26 -0.24 q0.66 -0.24 1.04 -0.7 q0.44 -0.54 0.44 -1.24 q0 -1.2 -0.94 -1.74 q-0.74 -0.44 -2.02 -0.44 l-2.56 0 q-1.72 0 -2.84 0.6 z M107.84 15.92 q0 1.4 -0.78 2.38 q-0.68 0.86 -1.92 1.3 q-1.1 0.4 -2.42 0.4 l-7.56 0 l0 -14.92 l7.56 0 q1.28 0 2.27 0.48 t1.55 1.38 q0.58 0.94 0.58 2.22 q0 0.98 -0.35 1.75 t-0.99 1.19 q0.86 0.4 1.42 1.32 q0.64 1.06 0.64 2.5 z M124.34 12.440000000000001 q0 -1.6 -0.82 -2.9 q-0.78 -1.26 -2.13 -1.98 t-2.93 -0.72 q-1.64 0 -2.99 0.74 t-2.11 2.02 q-0.78 1.34 -0.78 2.98 q0 1.56 0.84 2.88 q0.8 1.24 2.15 1.97 t2.92 0.73 t2.92 -0.76 t2.13 -2.04 q0.8 -1.34 0.8 -2.92 z M126.50000000000001 12.559999999999999 q0 2.16 -1.12 3.98 q-1.08 1.74 -2.93 2.77 t-3.99 1.03 q-2.22 0 -4.08 -1.08 q-1.82 -1.04 -2.86 -2.86 q-1.08 -1.86 -1.08 -4.08 q0 -2.14 1.14 -3.94 q1.08 -1.72 2.93 -2.73 t3.97 -1.01 q2.18 0 4.04 1.06 q1.82 1.04 2.88 2.82 q1.1 1.86 1.1 4.04 z M143.36 20 l-2.76 0 l-4.58 -6.28 l-4.74 6.28 l-2.78 0 l6.12 -8.1 l-4.92 -6.82 l2.64 0 l3.68 4.980 l3.74 -4.98 l2.7 0 l-5.06 6.82 z"/></g>
+        </g>
+      </svg>
+      <div class="sb-sub" id="sbSub">Belső rendszer</div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sb-foot">Prototípus · minta adatok</div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <span class="mlogo" id="mlogo"></span>
+      <label class="search"><span data-i="search"></span><input placeholder="Keresés megbízásszám, partner, rendszám…"></label>
+      <div class="sp"></div>
+      <span class="pill" title="Selexsped VIR szinkron"><span class="dot warn"></span>Selexsped: nincs bekötve</span>
+      <button class="iconbtn" data-demo title="Értesítések"><span data-i="bell"></span><span class="badge">3</span></button>
+      <span class="avatar" title="Bejelentkezés Microsoft-fiókkal (később)">NH</span>
+    </header>
+    <main class="content" id="view"></main>
+  </div>
+</div>
+
+<nav class="bnav" id="bnav"></nav>
+
+<div id="drawerWrap">
+  <div class="scrim" id="scrim"></div>
+  <aside class="drawer" id="drawer"></aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- Ikonok ---------- */
+const P = {
+  home:'<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+  file:'<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M8 13h8M8 17h5"/>',
+  pallet:'<path d="M3 15h18M3 19h18M5 15v4M12 15v4M19 15v4"/><rect x="5" y="5" width="14" height="8" rx="1"/>',
+  truck:'<path d="M2 6h11v10H2zM13 9h4l4 4v3h-8z"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+  gear:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  bell:'<path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0"/>',
+  search:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  alert:'<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  refresh:'<path d="M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5"/>',
+  upload:'<path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>',
+  folder:'<path d="M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/>',
+  check:'<path d="M20 6 9 17l-5-5"/>',
+  x:'<path d="M18 6 6 18M6 6l12 12"/>',
+  camera:'<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/>',
+  sparkle:'<path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5 18 18M6 18l2.5-2.5M15.5 8.5 18 6"/>',
+  pin:'<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+  plug:'<path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>',
+  receipt:'<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6"/>',
+  paint:'<circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7h2a5.6 5.6 0 0 0 5.4-5.6C22 6 17.5 2 12 2z"/>',
+  ext:'<path d="M14 3h7v7M10 14 21 3M19 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>'
+};
+const ic = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
+document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = ic(e.dataset.i));
+
+/* Logó-szimbólum (kocka) – favicon és mobil fejléc */
+const CUBE = document.querySelector('.sb-logo path').getAttribute('d');
+const cubeSvg = id => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="4 4 92 92"><defs><linearGradient id="${id}"><stop stop-color="#905e26" offset="0"/><stop stop-color="#f5ec9b" offset=".5"/><stop stop-color="#905e26" offset="1"/></linearGradient></defs><g transform="translate(0,-952.36218)"><path fill="url(#${id})" fill-rule="evenodd" d="${CUBE}"/></g></svg>`;
+document.getElementById('mlogo').innerHTML = cubeSvg('nhcGoldM');
+const fav = document.createElement('link'); fav.rel = 'icon';
+fav.href = 'data:image/svg+xml,' + encodeURIComponent(cubeSvg('g')); document.head.appendChild(fav);
+
+/* ---------- Minta adatok (csak megjelenítéshez; a valós mezők a Selexsped API-ból jönnek) ---------- */
+const ORDERS = [
+  {no:'MINTA-0001',partner:'Minta Partner A Kft.',from:'Budapest (HU)',to:'München (DE)',load:'10.29. 08:00',unload:'10.30. 08:00–12:00',status:'Úton',pallet:{n:33,t:'EUR'},veh:'MINTA-101',sp:true,eta:'10.30. 10:40',risk:false},
+  {no:'MINTA-0002',partner:'Minta Partner B Zrt.',from:'Győr (HU)',to:'Wien (AT)',load:'10.29. 10:00',unload:'10.29. 16:00–18:00',status:'Úton',pallet:{n:26,t:'EUR'},veh:'MINTA-102',sp:true,eta:'10.29. 18:55',risk:true},
+  {no:'MINTA-0003',partner:'Minta Partner C Kft.',from:'Debrecen (HU)',to:'Kraków (PL)',load:'10.30. 07:00',unload:'10.31. 06:00–14:00',status:'Felrakásra vár',pallet:null,veh:'MINTA-103',sp:true,eta:'—',risk:false},
+  {no:'MINTA-0004',partner:'Minta Partner A Kft.',from:'Budapest (HU)',to:'Milano (IT)',load:'10.27. 09:00',unload:'10.28. 08:00–12:00',status:'Lerakva',pallet:{n:33,t:'EUR'},veh:'MINTA-104',sp:true,eta:'Lerakva',risk:false},
+  {no:'MINTA-0005',partner:'Minta Partner D Bt.',from:'Szeged (HU)',to:'Timișoara (RO)',load:'10.26. 12:00',unload:'10.26. 18:00–20:00',status:'Lezárva',pallet:{n:20,t:'EUR'},veh:'MINTA-105',sp:true,eta:'Lerakva',risk:false},
+  {no:'MINTA-0006',partner:'Minta Partner B Zrt.',from:'Tatabánya (HU)',to:'Brno (CZ)',load:'10.31. 06:00',unload:'10.31. 14:00–16:00',status:'Új',pallet:null,veh:'—',sp:false,eta:'—',risk:false},
+  {no:'MINTA-0007',partner:'Minta Partner E Kft.',from:'Kecskemét (HU)',to:'Ljubljana (SI)',load:'10.30. 08:00',unload:'10.30. 18:00–20:00',status:'Felrakásra vár',pallet:{n:18,t:'EUR'},veh:'MINTA-106',sp:true,eta:'—',risk:false},
+];
+const STATUS_CLS = {'Új':'info','Felrakásra vár':'acc','Úton':'warn','Lerakva':'ok','Lezárva':''};
+const PDOCS = [
+  {no:'MINTA-0004',partner:'Minta Partner A Kft.',exp:'33 EUR',dl:'10.31.',rule:'Lerakás + 3 nap',st:'Várakozik',cls:'warn'},
+  {no:'MINTA-0005',partner:'Minta Partner D Bt.',exp:'20 EUR',dl:'10.28.',rule:'Fix dátum',st:'Lejárt',cls:'bad'},
+  {no:'MINTA-0001',partner:'Minta Partner A Kft.',exp:'33 EUR',dl:'11.02.',rule:'Lerakás + 3 nap',st:'Várakozik',cls:''},
+  {no:'MINTA-0008',partner:'Minta Partner C Kft.',exp:'24 EUR',dl:'10.27.',rule:'Lerakás + 2 nap',st:'AI ellenőrzésre vár',cls:'info'},
+];
+const BAL = [
+  {p:'Minta Partner A Kft.',out:66,ret:'Fuvaronként',due:'11.05.',st:'ok'},
+  {p:'Minta Partner B Zrt.',out:26,ret:'14 nap (partner-szabály)',due:'11.12.',st:'ok'},
+  {p:'Minta Partner C Kft.',out:-3,ret:'7 nap (partner-szabály)',due:'Lejárt',st:'bad'},
+  {p:'Minta Partner D Bt.',out:20,ret:'Fuvaronként',due:'10.30.',st:'warn'},
+];
+const VEH = [
+  {pl:'MINTA-101',ord:'MINTA-0001',pos:'A1, Linz közelében',src:'Kézi',upd:'10:12',eta:'10.30. 10:40',win:'08:00–12:00',st:'ok'},
+  {pl:'MINTA-102',ord:'MINTA-0002',pos:'M1, Hegyeshalom',src:'Excel',upd:'09:40',eta:'10.29. 18:55',win:'16:00–18:00',st:'bad'},
+  {pl:'MINTA-103',ord:'MINTA-0003',pos:'Telephely, Debrecen',src:'Kézi',upd:'08:05',eta:'—',win:'06:00–14:00',st:''},
+  {pl:'MINTA-106',ord:'MINTA-0007',pos:'Ismeretlen',src:'—',upd:'—',eta:'—',win:'18:00–20:00',st:'warn'},
+];
+
+/* ---------- Navigáció ---------- */
+const NAV = [
+  {h:'Áttekintés'},
+  {id:'dash',l:'Irányítópult',i:'home'},
+  {h:'Modulok'},
+  {id:'orders',l:'Megbízások',i:'file'},
+  {id:'pallets',l:'Raklapok',i:'pallet',cnt:2},
+  {id:'fleet',l:'Járműkövetés',i:'truck',cnt:1},
+  {h:'Törzsadat'},
+  {id:'partners',l:'Partnerek',i:'users'},
+  {id:'settings',l:'Beállítások',i:'gear'},
+];
+function drawNav(cur){
+  document.getElementById('nav').innerHTML = NAV.map(n => n.h ? `<div class="nav-h">${n.h}</div>` :
+    `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span>${n.cnt?`<span class="cnt">${n.cnt}</span>`:''}</a>`).join('');
+  document.getElementById('bnav').innerHTML = NAV.filter(n => n.id && n.id!=='partners').map(n =>
+    `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span></a>`).join('');
+}
+
+/* ---------- Segédek ---------- */
+const chip = (t,c='') => `<span class="chip ${c}">${t}</span>`;
+const ph = (t,p,act='') => `<div class="ph"><div><h1>${t}</h1>${p?`<p>${p}</p>`:''}</div><div class="act">${act}</div></div>`;
+const btn = (t,i,cls='',attr='data-demo') => `<button class="btn ${cls}" ${attr}>${i?ic(i):''}${t}</button>`;
+const notice = t => `<div class="notice">${ic('plug')}<div>${t}</div></div>`;
+const kpi = (l,i,v,s) => `<div class="card kpi"><div class="l">${ic(i)}${l}</div><div class="v mono">${v}</div><div class="s">${s}</div></div>`;
+function ordersTable(rows){
+  return `<div class="tw"><table><thead><tr><th>Megbízásszám</th><th>Partner</th><th>Felrakás</th><th>Lerakás</th><th>Lerakási ablak</th><th>Raklap</th><th>Jármű</th><th>Státusz</th><th>SharePoint</th></tr></thead><tbody>${
+    rows.map(o => `<tr class="click" data-order="${o.no}"><td class="mono"><b>${o.no}</b></td><td>${o.partner}</td><td>${o.from}</td><td>${o.to}</td><td class="mono">${o.unload}</td><td>${o.pallet?chip(o.pallet.n+' '+o.pallet.t,'acc'):'<span class="muted">—</span>'}</td><td class="mono">${o.veh}</td><td>${chip(o.status,STATUS_CLS[o.status])}${o.risk?' '+chip('ETA késés','bad'):''}</td><td>${o.sp?chip('Mentve','ok'):chip('Függőben','warn')}</td></tr>`).join('')
+  }</tbody></table></div>`;
+}
+
+/* ---------- Nézetek ---------- */
+const V = {};
+V.dash = () => ph('Irányítópult','Mai állapot egy helyen', btn('Szinkron most','refresh')) +
+  notice('<b>Prototípus.</b> Minden adat minta. A Selexsped API, a Microsoft 365 és a telematika bekötése után valós adatok jelennek meg.') +
+  `<div class="grid kpis">${kpi('Aktív megbízások','file','5','2 úton · 2 felrakásra vár')}${kpi('Raklapcserés nyitott','pallet','4','131 EUR raklap vár elszámolásra')}${kpi('Lejárt raklapjegy','clock','1','határidő után')}${kpi('Aktív riasztás','alert','2','1 ETA-késés · 1 nincs pozíció')}</div>
+  <div class="grid two" style="margin-top:16px">
+    <div class="card"><div class="card-h"><h3>Legutóbbi megbízások</h3><a class="r btn sm" href="#orders">Összes</a></div>${ordersTable(ORDERS.slice(0,5))}</div>
+    <div class="card"><div class="card-h"><h3>Riasztások és teendők</h3></div><div class="list">
+      ${alertItem('bad','alert','ETA kicsúszik az ablakból','MINTA-0002 · várható 18:55, ablak 16:00–18:00','12 perce')}
+      ${alertItem('bad','clock','Lejárt raklapjegy-határidő','MINTA-0005 · 20 EUR · Minta Partner D Bt.','tegnap')}
+      ${alertItem('info','sparkle','AI-kiolvasás jóváhagyásra vár','MINTA-0008 · bizonytalan: átadó, pecsét','1 órája')}
+      ${alertItem('warn','pin','Nincs friss pozíció','MINTA-106 · utolsó adat: —','2 órája')}
+      ${alertItem('warn','folder','SharePoint-mentés függőben','MINTA-0006 · webhely még nincs megadva','ma')}
+    </div></div>
+  </div>`;
+function alertItem(c,i,t,d,tm){return `<div class="li"><span class="ic chip ${c}" style="padding:0">${ic(i)}</span><div><div class="t">${t}</div><div class="d">${d}</div></div><span class="tm">${tm}</span></div>`}
+
+V.orders = () => ph('Megbízások','Forrás: Selexsped VIR (csak olvasás) · a számozás a Selexspedé', btn('Szinkron most','refresh')) +
+  `<div class="filters"><select><option>Minden státusz</option>${Object.keys(STATUS_CLS).map(s=>`<option>${s}</option>`).join('')}</select><select><option>Minden partner</option></select><select><option>Raklapcsere: mind</option><option>Csak raklapcserés</option></select><input type="date"></div>
+  <div class="card">${ordersTable(ORDERS)}</div>`;
+
+V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó feltöltése','upload','pri')) +
+  `<div class="tabs" id="ptabs">${[['docs','Várt dokumentumok'],['ai','AI-ellenőrzés (1)'],['bal','Partneregyenleg'],['issues','Problémák (1)']].map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>` +
+  ({docs:palDocs,ai:palAi,bal:palBal,issues:palIssues})[tab]();
+function palDocs(){return `<div class="card"><div class="tw"><table><thead><tr><th>Megbízás</th><th>Partner</th><th>Várt</th><th>Határidő</th><th>Szabály</th><th>Állapot</th><th></th></tr></thead><tbody>${
+  PDOCS.map(d=>`<tr><td class="mono"><b>${d.no}</b></td><td>${d.partner}</td><td>${chip(d.exp,'acc')}</td><td class="mono">${d.dl}</td><td class="muted">${d.rule}</td><td>${chip(d.st,d.cls)}</td><td>${btn('Feltöltés','camera','sm')}</td></tr>`).join('')}</tbody></table></div></div>`}
+function palAi(){
+  const f=(k,v,c,warn)=>`<div class="fld"><span class="k">${k}</span><input value="${v}"><div><span class="conf" style="color:var(--${warn?'warn':'ok'})">${Math.round(c*100)}%</span><div class="bar"><i style="width:${c*100}%;background:var(--${warn?'warn':'ok'})"></i></div></div></div>`;
+  return `<div class="card"><div class="card-h"><h3>MINTA-0008 · Minta Partner C Kft.</h3><span class="r">${chip('Emberi jóváhagyás kell','warn')}</span></div><div class="card-b review">
+    <div class="photo"><div>${ic('camera')}<div style="margin-top:8px">A feltöltött raklapjegy / CMR fotója itt jelenik meg</div><div class="muted" style="font-size:12px">nagyítás, forgatás</div></div></div>
+    <div><div class="muted" style="font-size:13px;margin-bottom:6px">AI által kiolvasott adatok. A sárga mezőket ellenőrizni kell.</div>
+      ${f('Darabszám','21',.94)}${f('Típus','EUR',.98)}${f('Átadó','—',.58,1)}${f('Átvevő','Minta Partner C Kft.',.81)}${f('Aláírás / pecsét','Aláírás igen, pecsét bizonytalan',.62,1)}
+      <div class="notice" style="margin:14px 0 0">${''}<div><b>Eltérés:</b> várt 24 EUR, kiolvasva 21 EUR → jóváhagyás után 3 db hiány nyílik problémaként.</div></div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri')}${btn('Elutasítás, új fotó','x')}</div>
+    </div></div></div>`}
+function palBal(){return `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Egyenleg (EUR)</th><th>Visszaviteli szabály</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
+  BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono" style="color:${b.out<0?'var(--bad)':'inherit'}">${b.out>0?'+':''}${b.out}</td><td class="muted">${b.ret}</td><td class="mono">${b.due}</td><td>${chip({ok:'Rendben',warn:'Közeleg',bad:'Lejárt'}[b.st],b.st)}</td></tr>`).join('')}</tbody></table></div></div>
+  <p class="muted" style="font-size:12px">Pozitív érték: nálunk lévő tartozás a partner felé; negatív: a partner tartozik. Az előjel értelmezését egyeztetni kell.</p>`}
+function palIssues(){return `<div class="card"><div class="list">
+  <div class="li"><span class="ic chip bad" style="padding:0">${ic('alert')}</span><div><div class="t">Raklaphiány: 3 db EUR</div><div class="d">MINTA-0008 · Minta Partner C Kft. · várt 24, átvett 21</div></div><div class="tm" style="display:flex;gap:6px">${btn('Kiszámlázandó tétel','receipt','sm pri')}${btn('Lezárás','check','sm')}</div></div>
+  </div></div><p class="muted" style="font-size:12px">A számlázás módja (melyik rendszer, automatikus vagy előkészített) még nyitott kérdés.</p>`}
+
+V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható: kézi státusz és Excel-feltöltés', btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
+  `<div class="grid prov" style="margin-bottom:16px">${['WebEye','Multi Alarm','Fleetcore'].map(p=>`<div class="card"><div class="card-b"><div style="display:flex;align-items:center;gap:8px"><h4>${p}</h4><span style="margin-left:auto">${chip('Nincs bekötve')}</span></div><div class="muted" style="font-size:13px">Saját csatlakozó (adapter) · pozíció, ETA, vezetési idő</div></div></div>`).join('')}</div>
+  <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th></tr></thead><tbody>${
+  VEH.map(v=>`<tr><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
+
+V.partners = () => ph('Partnerek','Partnertörzs a Selexsped VIR-ből (csak olvasás)') +
+  `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Aktív megbízás</th><th>Raklapegyenleg</th><th>Visszaviteli szabály</th></tr></thead><tbody>${
+  BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono">${ORDERS.filter(o=>o.partner===b.p&&o.status!=='Lezárva').length}</td><td class="mono">${b.out}</td><td class="muted">${b.ret}</td></tr>`).join('')}</tbody></table></div></div>`;
+
+V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjelenés') +
+  `<div class="set-grid">
+   <div class="card"><div class="card-h"><h3>Integrációk</h3></div><div class="list">
+     ${intg('Selexsped VIR API','Megbízások és partnertörzs','API-dokumentációra vár','warn')}
+     ${intg('Microsoft Entra ID','Belépés Microsoft-fiókkal','Beállítás alatt','warn')}
+     ${intg('SharePoint','Megbízások mentése, mappák','Webhely nincs megadva','')}
+     ${intg('Képfelismerés (Claude API)','Raklapjegy / CMR kiolvasás','Nincs beállítva','')}
+     ${intg('Telematika','WebEye · Multi Alarm · Fleetcore','Hozzáférésre vár','')}
+     ${intg('Push értesítés','Telepíthető webapp (PWA)','Megerősítésre vár','')}
+   </div></div>
+   <div class="card"><div class="card-h"><h3>${ic('paint').replace('<svg','<svg style="width:18px;height:18px;color:var(--accent)"')} Testreszabás</h3><span class="r muted" style="font-size:12px">azonnal látszik</span></div><div class="card-b" id="custom"></div></div>
+   </div>`;
+function intg(t,d,s,c){return `<div class="li"><div><div class="t">${t}</div><div class="d">${d}</div></div><span class="tm">${chip(s,c)}</span></div>`}
+
+/* ---------- Testreszabás ---------- */
+const DEF = {theme:'auto',accent:'#b8963e',sidebar:'dark',density:'normal',sub:'Belső rendszer'};
+let S = {...DEF};
+try{ Object.assign(S, JSON.parse(localStorage.getItem('nhc-proto')||'{}')); }catch(e){}
+const ACCENTS = [['#b8963e','Arany (logó)'],['#905e26','Bronz'],['#cbb26a','Világos arany'],['#1f4e8c','Sötétkék'],['#2f7d5b','Zöld'],['#3a3f4a','Grafit']];
+function ink(hex){const n=parseInt(hex.slice(1),16),r=n>>16&255,g=n>>8&255,b=n&255;return (0.299*r+0.587*g+0.114*b)>150?'#1a1609':'#ffffff'}
+function apply(){
+  const r=document.documentElement;
+  S.theme==='auto'?r.removeAttribute('data-theme'):r.setAttribute('data-theme',S.theme);
+  r.setAttribute('data-sidebar',S.sidebar); r.setAttribute('data-density',S.density);
+  r.style.setProperty('--accent',S.accent); r.style.setProperty('--accent-ink',ink(S.accent));
+  r.style.setProperty('--accent-soft',`color-mix(in srgb, ${S.accent} 15%, transparent)`);
+  document.getElementById('sbSub').textContent=S.sub;
+  try{localStorage.setItem('nhc-proto',JSON.stringify(S))}catch(e){}
+}
+function seg(key,opts){return `<div class="seg">${opts.map(([v,l])=>`<button data-set="${key}" data-val="${v}" class="${S[key]===v?'on':''}">${l}</button>`).join('')}</div>`}
+function drawCustom(){
+  const el=document.getElementById('custom'); if(!el) return;
+  el.innerHTML = `
+  <div class="field"><label>Kiemelő szín</label><div class="swatches">${ACCENTS.map(([c,l])=>`<span class="sw ${S.accent===c?'on':''}" title="${l}" style="background:${c}" data-acc="${c}"></span>`).join('')}<input type="color" class="sw-in" id="accIn" value="${S.accent}" title="Egyedi szín"></div><span class="hint">Gombok, aktív menüpont, kiemelések</span></div>
+  <div class="field"><label>Téma</label>${seg('theme',[['auto','Rendszer szerint'],['light','Világos'],['dark','Sötét']])}</div>
+  <div class="field"><label>Oldalsáv</label>${seg('sidebar',[['dark','Sötét'],['light','Világos']])}<span class="hint">A sötét oldalsávon érvényesül legjobban az arany logó</span></div>
+  <div class="field"><label>Sűrűség</label>${seg('density',[['normal','Normál'],['compact','Tömör']])}</div>
+  <div class="field"><label>Felirat a logó alatt</label><input id="subIn" value="${S.sub}"></div>
+  <div class="field"><label>Beállítások exportja</label><pre class="out">${JSON.stringify(S,null,2)}</pre><span class="hint">Ha tetszik egy kombináció, ezt másold be nekem, és ez lesz az alapértelmezett.</span></div>
+  <button class="btn" id="resetC">Visszaállítás</button>`;
+}
+
+/* ---------- Megbízás részletek ---------- */
+function openOrder(no){
+  const o=ORDERS.find(x=>x.no===no); if(!o) return;
+  document.getElementById('drawer').innerHTML = `
+  <div class="dr-h"><div><div class="muted" style="font-size:12px">Megbízás (Selexsped)</div><h2 class="mono">${o.no}</h2><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${chip(o.status,STATUS_CLS[o.status])}${o.risk?chip('ETA késés','bad'):''}</div></div><button class="iconbtn" style="margin-left:auto" id="closeDr">${ic('x')}</button></div>
+  <div class="dr-b">
+    <div class="sec"><h5>Partner</h5><div class="kv"><span class="k">Megbízó</span><span>${o.partner}</span><span class="k">Nyelv</span><span>HU / EN</span></div></div>
+    <div class="sec"><h5>Útvonal</h5><div class="route"><div><b>${o.from}</b><div class="muted">Felrakás: ${o.load}</div></div><div><b>${o.to}</b><div class="muted">Lerakási ablak: ${o.unload}</div></div></div></div>
+    <div class="sec"><h5>Raklapcsere</h5>${o.pallet?`<div class="kv"><span class="k">Darab / típus</span><span>${o.pallet.n} × ${o.pallet.t}</span><span class="k">Raklapjegy</span><span>${chip('Várakozik','warn')}</span><span class="k">Határidő</span><span>Lerakás + 3 nap</span></div>`:`<span class="muted">Nem raklapcserés</span> ${btn('Raklapcserésnek jelöl','pallet','sm')}`}</div>
+    <div class="sec"><h5>Jármű</h5><div class="kv"><span class="k">Rendszám</span><span class="mono">${o.veh}</span><span class="k">ETA</span><span class="mono">${o.eta}</span><span class="k">Lekövetés</span><span class="muted">Automatikusan létrejön (első körben opcionális)</span></div></div>
+    <div class="sec"><h5>SharePoint</h5><div class="kv"><span class="k">Mappa</span><span class="muted" style="white-space:normal">Megbízások / … (mappaszerkezet egyeztetés alatt)</span><span class="k">Állapot</span><span>${o.sp?chip('Mentve','ok'):chip('Függőben','warn')}</span></div><div style="margin-top:10px">${btn('Megnyitás SharePointban','ext','sm')}</div></div>
+  </div>`;
+  document.getElementById('drawerWrap').classList.add('open');
+}
+function closeOrder(){document.getElementById('drawerWrap').classList.remove('open')}
+
+/* ---------- Router és események ---------- */
+let palTab='docs';
+function route(){
+  const v=(location.hash||'#dash').slice(1); const view=V[v]?v:'dash';
+  drawNav(view); closeOrder();
+  document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
+  drawCustom(); window.scrollTo(0,0);
+}
+let tt; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
+document.addEventListener('click',e=>{
+  const t=e.target;
+  const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
+  if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
+  const tab=t.closest('[data-tab]'); if(tab){palTab=tab.dataset.tab;return route()}
+  const s=t.closest('[data-set]'); if(s){S[s.dataset.set]=s.dataset.val;apply();return drawCustom()}
+  const a=t.closest('[data-acc]'); if(a){S.accent=a.dataset.acc;apply();return drawCustom()}
+  if(t.closest('#resetC')){S={...DEF};apply();return drawCustom()}
+  if(t.closest('[data-demo]')) toast('Prototípus: ez a funkció még nincs bekötve.');
+});
+document.addEventListener('input',e=>{
+  if(e.target.id==='accIn'){S.accent=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
+  if(e.target.id==='subIn'){S.sub=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOrder()});
+window.addEventListener('hashchange',route);
+apply(); route();
+</script>
+</body>
+</html>
