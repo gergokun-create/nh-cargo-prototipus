@@ -380,7 +380,7 @@ const SUBS = [
   {p:'Minta Fuvarozó Kft.',out:-12,due:'11.08.',st:'ok'},
   {p:'Minta Fuvarozó B Bt.',out:5,due:'Lejárt',st:'bad'},
 ];
-let balView='client';
+let balView='client', chargeTo=null;
 const balChip = st => chip({ok:'Rendben',warn:'Közeleg',bad:'Lejárt'}[st],st);
 const balNum = n => `<td class="mono" style="color:${n<0?'var(--bad)':'inherit'}">${n>0?'+':''}${n}</td>`;
 function palBal2(){
@@ -389,7 +389,7 @@ function palBal2(){
         BAL.map(b=>`<tr><td><b>${b.p}</b></td>${balNum(b.out)}<td class="muted">${b.ret}</td><td class="mono">${b.due}</td><td>${balChip(b.st)}</td></tr>`).join('')}</tbody>`
     : `<thead><tr><th>Alvállalkozó fuvarozó</th><th>Egyenleg (EUR)</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
         SUBS.map(b=>`<tr><td><b>${b.p}</b></td>${balNum(b.out)}<td class="mono">${b.due}</td><td>${balChip(b.st)}</td></tr>`).join('')}</tbody>`;
-  return `<div class="notice">${ic('alert')}<div><b>Két egyenleg:</b> a raklapokat a megbízóval és az alvállalkozó fuvarozóval szemben is vezetjük. A könyvelési szabály (egy cserénél mi kerül melyik egyenlegre, és mit jelent az előjel) még egyeztetés alatt, a számok mintaértékek.</div></div>
+  return `<div class="notice">${ic('alert')}<div><b>Két egyenleg:</b> a raklapokat a megbízóval és az alvállalkozó fuvarozóval szemben is vezetjük. Szabály: a helyben, darabra megtörtént csere egyik egyenleget sem mozdítja; egyenleg csak eltérésnél vagy hiánynál változik, és a hiányt esetenként a megbízóra vagy az alvállalkozóra terheljük. Az előjel jelentése még egyeztetendő, a számok mintaértékek.</div></div>
   <div class="seg" style="margin-bottom:12px"><button data-balv="client" class="${balView==='client'?'on':''}">Megbízók</button><button data-balv="sub" class="${balView==='sub'?'on':''}">Alvállalkozók</button></div>
   <div class="card"><div class="tw"><table>${table}</table></div></div>`;
 }
@@ -429,14 +429,15 @@ function palAi(){
         <tr><td>Leadott üres</td><td class="mono">24</td><td class="mono">21</td><td>${chip('−3 eltérés','bad')}</td></tr>
         <tr><td>Felvett rakott</td><td class="mono">24</td><td class="mono">24</td><td>${chip('egyezik','ok')}</td></tr>
       </tbody></table></div></div>
-      <div class="notice" style="margin:14px 0 0">${ic('alert')}<div><b>Eltérés:</b> a megbízás szerint 24 EUR cseréje várt, a lapon 21 üres leadása szerepel → jóváhagyás után probléma nyílik 3 db eltérésről. Hogy melyik egyenleget terheli (megbízó vagy alvállalkozó), a könyvelési szabály tisztázása után dől el.</div></div>
-      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri')}${btn('Elutasítás, új fotó','x','','data-upload')}</div>
+      <div class="notice" style="margin:14px 0 0">${ic('alert')}<div><b>Eltérés:</b> a megbízás szerint 24 EUR cseréje várt, a lapon 21 üres leadása szerepel → jóváhagyás után probléma nyílik 3 db eltérésről. A hiányt esetenként terheljük: válaszd ki, kire.</div></div>
+      <div class="field" style="margin:12px 0 0"><label>Hiány terhelése</label><div class="seg"><button data-charge="client" class="${chargeTo==='client'?'on':''}">Megbízó · ${d.partner}</button><button data-charge="sub" class="${chargeTo==='sub'?'on':''}">Alvállalkozó · Minta Fuvarozó Kft.</button></div></div>
+      <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri','id="approveBtn"')}${btn('Elutasítás, új fotó','x','','data-upload')}</div>
     </div></div></div>`}
 function palBal(){return `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Egyenleg (EUR)</th><th>Visszaviteli szabály</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
   BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono" style="color:${b.out<0?'var(--bad)':'inherit'}">${b.out>0?'+':''}${b.out}</td><td class="muted">${b.ret}</td><td class="mono">${b.due}</td><td>${chip({ok:'Rendben',warn:'Közeleg',bad:'Lejárt'}[b.st],b.st)}</td></tr>`).join('')}</tbody></table></div></div>
   <p class="muted" style="font-size:12px">Pozitív érték: nálunk lévő tartozás a partner felé; negatív: a partner tartozik. Az előjel értelmezését egyeztetni kell.</p>`}
 function palIssues(){return `<div class="card"><div class="list">
-  <div class="li"><span class="ic chip bad" style="padding:0">${ic('alert')}</span><div><div class="t">Raklaphiány: 3 db EUR</div><div class="d">MINTA-0008 · Minta Partner C Kft. · várt 24, átvett 21</div></div><div class="tm" style="display:flex;gap:6px">${btn('Kiszámlázandó tétel','receipt','sm pri')}${btn('Lezárás','check','sm')}</div></div>
+  <div class="li"><span class="ic chip bad" style="padding:0">${ic('alert')}</span><div><div class="t">Raklaphiány: 3 db EUR</div><div class="d">MINTA-0008 · Minta Partner C Kft. · várt 24, átvett 21 · terhelés: alvállalkozó (jóváhagyáskor választva)</div></div><div class="tm" style="display:flex;gap:6px">${btn('Kiszámlázandó tétel','receipt','sm pri')}${btn('Lezárás','check','sm')}</div></div>
   </div></div><p class="muted" style="font-size:12px">A számlázás módja (melyik rendszer, automatikus vagy előkészített) még nyitott kérdés.</p>`}
 
 V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható: kézi státusz és Excel-feltöltés', btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
@@ -568,6 +569,8 @@ document.addEventListener('click',e=>{
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
   const bv=t.closest('[data-balv]'); if(bv){balView=bv.dataset.balv;return route()}
+  const ch=t.closest('[data-charge]'); if(ch){chargeTo=ch.dataset.charge;document.querySelectorAll('[data-charge]').forEach(b=>b.classList.toggle('on',b===ch));return}
+  if(t.closest('#approveBtn')) return toast(chargeTo ? `Prototípus: a 3 db hiány a(z) ${chargeTo==='client'?'megbízó':'alvállalkozó'} egyenlegére kerülne.` : 'Előbb válaszd ki, kire terheljük a hiányt.');
   if(t.closest('#pgPrev')) return gotoPage(-1);
   if(t.closest('#pgNext')) return gotoPage(1);
   if(t.closest('#rotBtn')){PHOTO.rot=(PHOTO.rot+90)%360;document.querySelector('#photoBox img').style.transform=rotT(PHOTO.rot,document.getElementById('photoBox'));return}
