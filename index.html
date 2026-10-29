@@ -145,6 +145,12 @@ tbody tr.click:hover td{background:var(--accent-soft)}
 .fld .k{color:var(--muted);font-size:13px}
 .fld input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 8px}
 .conf{font-size:12px;font-weight:600}
+.grp{margin-top:14px}
+.grp h5{margin:0 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+details.grp summary{cursor:pointer;color:var(--muted);font-size:13px;padding:8px 0;border-top:1px solid var(--border)}
+.okline{font-size:12px;color:var(--ok);display:flex;gap:6px;align-items:center;padding:6px 0}
+.okline svg{width:14px;height:14px;flex:none}
+table.cmp td{height:36px}
 .bar{height:6px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:4px;min-width:70px}
 .bar i{display:block;height:100%}
 
@@ -369,12 +375,32 @@ V.orders = () => ph('Megbízások','Forrás: Selexsped VIR (csak olvasás) · a 
 
 V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó / PDF feltöltése','upload','pri','data-upload')) +
   `<div class="tabs" id="ptabs">${[['docs','Várt dokumentumok'],['ai','AI-ellenőrzés (1)'],['bal','Partneregyenleg'],['issues','Problémák (1)']].map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>` +
-  ({docs:palDocs,ai:palAi,bal:palBal,issues:palIssues})[tab]();
+  ({docs:palDocs,ai:palAi,bal:palBal2,issues:palIssues})[tab]();
+const SUBS = [
+  {p:'Minta Fuvarozó Kft.',out:-12,due:'11.08.',st:'ok'},
+  {p:'Minta Fuvarozó B Bt.',out:5,due:'Lejárt',st:'bad'},
+];
+let balView='client';
+const balChip = st => chip({ok:'Rendben',warn:'Közeleg',bad:'Lejárt'}[st],st);
+const balNum = n => `<td class="mono" style="color:${n<0?'var(--bad)':'inherit'}">${n>0?'+':''}${n}</td>`;
+function palBal2(){
+  const table = balView==='client'
+    ? `<thead><tr><th>Megbízó</th><th>Egyenleg (EUR)</th><th>Visszaviteli szabály</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
+        BAL.map(b=>`<tr><td><b>${b.p}</b></td>${balNum(b.out)}<td class="muted">${b.ret}</td><td class="mono">${b.due}</td><td>${balChip(b.st)}</td></tr>`).join('')}</tbody>`
+    : `<thead><tr><th>Alvállalkozó fuvarozó</th><th>Egyenleg (EUR)</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
+        SUBS.map(b=>`<tr><td><b>${b.p}</b></td>${balNum(b.out)}<td class="mono">${b.due}</td><td>${balChip(b.st)}</td></tr>`).join('')}</tbody>`;
+  return `<div class="notice">${ic('alert')}<div><b>Két egyenleg:</b> a raklapokat a megbízóval és az alvállalkozó fuvarozóval szemben is vezetjük. A könyvelési szabály (egy cserénél mi kerül melyik egyenlegre, és mit jelent az előjel) még egyeztetés alatt, a számok mintaértékek.</div></div>
+  <div class="seg" style="margin-bottom:12px"><button data-balv="client" class="${balView==='client'?'on':''}">Megbízók</button><button data-balv="sub" class="${balView==='sub'?'on':''}">Alvállalkozók</button></div>
+  <div class="card"><div class="tw"><table>${table}</table></div></div>`;
+}
 function palDocs(){return `<div class="card"><div class="tw"><table><thead><tr><th>Megbízás</th><th>Partner</th><th>Várt</th><th>Határidő</th><th>Szabály</th><th>Állapot</th><th></th></tr></thead><tbody>${
   PDOCS.map(d=>`<tr><td class="mono"><b>${d.no}</b></td><td>${d.partner}</td><td>${chip(d.exp,'acc')}</td><td class="mono">${d.dl}</td><td class="muted">${d.rule}</td><td>${chip(d.st,d.cls)}</td><td>${btn('Feltöltés','camera','sm',`data-upload="${d.no}"`)}</td></tr>`).join('')}</tbody></table></div></div>`}
 function palAi(){
   const f=(k,v,c,warn)=>`<div class="fld"><span class="k">${k}</span><input value="${v}"><div><span class="conf" style="color:var(--${warn?'warn':'ok'})">${Math.round(c*100)}%</span><div class="bar"><i style="width:${c*100}%;background:var(--${warn?'warn':'ok'})"></i></div></div></div>`;
   const d = PDOCS.find(x=>x.no===(PHOTO&&PHOTO.no)) || PDOCS[3];
+  // A nyomtatványon nincs megbízásszám: a fájlnév eleje az (pl. „<megbízásszám>pal2.pdf”)
+  const fm = PHOTO && PHOTO.name.match(/^(\d+)\s*pal(\d+)/i);
+  const ordNo = fm ? fm[1] : d.no;
   const photo = PHOTO
     ? `<div><div class="photo has" id="photoBox"><img src="${PHOTO.img}" alt="Feltöltött dokumentum" style="transform:${rotT(PHOTO.rot)}"></div>
        <div class="ptools">${btn('Forgatás','refresh','sm','id="rotBtn"')}${btn('Nagyítás','search','sm','id="zoomBtn"')}${
@@ -382,11 +408,28 @@ function palAi(){
        }${btn('Másik fájl','upload','sm','data-upload')}<span class="muted">${PHOTO.pdf?'PDF · ':''}${PHOTO.name}</span></div>
        <div class="notice" style="margin:10px 0 0">${ic('alert')}<div><b>Bemutató:</b> a fájl csak ebben a böngészőben látszik, nem kerül sehova feltöltésre, és frissítéskor eltűnik. A kiolvasott mezők mintaértékek.</div></div></div>`
     : `<div class="photo drop" data-upload>${''}<div>${ic('upload')}<div style="margin-top:8px"><b>Kattints ide a raklapjegy / CMR kiválasztásához</b></div><div class="muted" style="font-size:12px">PDF vagy fotó · telefonon a kamera is választható</div></div></div>`;
-  return `<div class="card"><div class="card-h"><h3>${d.no} · ${d.partner}</h3><span class="r">${chip(PHOTO?'Emberi jóváhagyás kell':'Fotóra vár','warn')}</span></div><div class="card-b review">
+  return `<div class="card"><div class="card-h"><h3>${ordNo} · ${d.partner}</h3><span class="r">${chip(PHOTO?'Emberi jóváhagyás kell':'Fotóra vár','warn')}</span></div><div class="card-b review">
     ${photo}
-    <div><div class="muted" style="font-size:13px;margin-bottom:6px">AI által kiolvasott adatok. A sárga mezőket ellenőrizni kell.</div>
-      ${f('Darabszám','21',.94)}${f('Típus','EUR',.98)}${f('Átadó','—',.58,1)}${f('Átvevő','Minta Partner C Kft.',.81)}${f('Aláírás / pecsét','Aláírás igen, pecsét bizonytalan',.62,1)}
-      <div class="notice" style="margin:14px 0 0">${''}<div><b>Eltérés:</b> várt 24 EUR, kiolvasva 21 EUR → jóváhagyás után 3 db hiány nyílik problémaként.</div></div>
+    <div><div class="muted" style="font-size:13px">AI által kiolvasott adatok („Raklap csere / Palettenschein” nyomtatvány). A sárga mezőket ellenőrizni kell.</div>
+      <div class="grp"><h5>Fejléc</h5>
+        ${f('Sorszám','PR 0000123',.97)}
+        <div class="fld"><span class="k">Megbízásszám</span><input value="${ordNo}"><div><span class="conf" style="color:var(--info)">${fm?'fájlnévből':'kiválasztott sor'}</span></div></div>
+        ${f('Dátum','2026.10.27.',.71,1)}${f('Vontató rendszáma','MINTA-101',.66,1)}${f('Pótkocsi rendszáma','MINTA-P01',.84)}
+        <div class="okline">${ic('check')}A sorszám még nem szerepel a rendszerben (ismétlődésnél itt figyelmeztet)</div>
+      </div>
+      <div class="grp"><h5>Felrakás</h5>
+        ${f('Felrakóhely','Minta Felrakó Kft., Szeged',.9)}${f('Adószám','12345678-2-06',.63,1)}${f('Leadott üres','21',.93)}${f('Felvett rakott','24',.95)}${f('Pecsét / aláírás','Pecsét igen, aláírás igen',.88)}
+      </div>
+      <div class="grp"><h5>Fuvarozó (alvállalkozó)</h5>
+        ${f('Fuvarozó','Minta Fuvarozó Kft.',.86)}${f('Pecsét / aláírás','Pecsét igen, aláírás igen',.8)}
+      </div>
+      <details class="grp"><summary>Lerakás: ennél a nyomtatványnál nem kitöltendő</summary><div class="muted" style="font-size:13px;padding:6px 0">Leadott rakott, felvett üres, lerakóhely igazolása: üresen marad, ez nem hiba.</div></details>
+      <div class="grp"><h5>Összevetés a megbízással</h5><div class="tw"><table class="cmp"><thead><tr><th></th><th>Megbízás</th><th>Raklapjegy</th><th></th></tr></thead><tbody>
+        <tr><td>Raklaptípus</td><td>EUR</td><td class="muted">nincs a lapon</td><td>${chip('megbízásból','info')}</td></tr>
+        <tr><td>Leadott üres</td><td class="mono">24</td><td class="mono">21</td><td>${chip('−3 eltérés','bad')}</td></tr>
+        <tr><td>Felvett rakott</td><td class="mono">24</td><td class="mono">24</td><td>${chip('egyezik','ok')}</td></tr>
+      </tbody></table></div></div>
+      <div class="notice" style="margin:14px 0 0">${ic('alert')}<div><b>Eltérés:</b> a megbízás szerint 24 EUR cseréje várt, a lapon 21 üres leadása szerepel → jóváhagyás után probléma nyílik 3 db eltérésről. Hogy melyik egyenleget terheli (megbízó vagy alvállalkozó), a könyvelési szabály tisztázása után dől el.</div></div>
       <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">${btn('Jóváhagyás','check','pri')}${btn('Elutasítás, új fotó','x','','data-upload')}</div>
     </div></div></div>`}
 function palBal(){return `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Egyenleg (EUR)</th><th>Visszaviteli szabály</th><th>Legközelebbi határidő</th><th>Állapot</th></tr></thead><tbody>${
@@ -524,6 +567,7 @@ document.addEventListener('click',e=>{
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  const bv=t.closest('[data-balv]'); if(bv){balView=bv.dataset.balv;return route()}
   if(t.closest('#pgPrev')) return gotoPage(-1);
   if(t.closest('#pgNext')) return gotoPage(1);
   if(t.closest('#rotBtn')){PHOTO.rot=(PHOTO.rot+90)%360;document.querySelector('#photoBox img').style.transform=rotT(PHOTO.rot,document.getElementById('photoBox'));return}
