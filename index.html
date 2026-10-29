@@ -191,6 +191,26 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;z-index:30;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.on{opacity:1;transform:translateX(-50%)}
 
+/* Belépés */
+body.locked .app, body.locked .bnav{display:none}
+.auth{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--sb-bg)}
+body:not(.locked) .auth{display:none}
+.auth-card{width:min(400px,100%);background:var(--surface);color:var(--text);border-radius:14px;padding:28px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+.auth-card .logo svg{width:100%;height:auto;display:block}
+.auth-card h2{margin:20px 0 4px;font-size:18px}
+.auth-card > p, .auth-card form > p{color:var(--muted);margin:0 0 16px;font-size:13px}
+.auth-card .field input{width:100%}
+.auth-card .btn{width:100%;justify-content:center}
+.auth-card ol{padding-left:18px;margin:0 0 10px;font-size:13px;color:var(--muted)}
+.err{color:var(--bad);font-size:13px;margin:-6px 0 10px;min-height:1em}
+.qr{display:grid;place-items:center;background:#fff;padding:10px;border-radius:10px;margin:6px auto 10px;width:max-content;min-height:60px}
+.secret{font-family:ui-monospace,Consolas,monospace;font-size:13px;word-break:break-all;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;margin-bottom:12px}
+.codes{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;font-family:ui-monospace,Consolas,monospace;margin:10px 0 14px}
+.codes span{background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px;text-align:center}
+.demo-hint{font-size:12px;background:var(--accent-soft);border-radius:8px;padding:8px 10px;margin-top:14px}
+.otp{letter-spacing:.35em;font-size:20px;text-align:center;font-variant-numeric:tabular-nums}
+.urow{display:flex;gap:6px}
+
 /* Mobile bottom nav */
 .bnav{display:none}
 @media (max-width:1100px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.two,.review,.set-grid{grid-template-columns:1fr}.prov{grid-template-columns:1fr}}
@@ -213,7 +233,8 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
 }
 </style>
 </head>
-<body>
+<body class="locked">
+<div class="auth" id="auth"></div>
 <div class="app" id="app">
   <aside class="sb">
     <div class="sb-logo">
@@ -239,7 +260,8 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
       <div class="sp"></div>
       <span class="pill" title="Selexsped VIR szinkron"><span class="dot warn"></span>Selexsped: nincs bekötve</span>
       <button class="iconbtn" data-demo title="Értesítések"><span data-i="bell"></span><span class="badge">3</span></button>
-      <span class="avatar" title="Bejelentkezés Microsoft-fiókkal (később)">NH</span>
+      <button class="iconbtn" id="logoutBtn" title="Kilépés"><span data-i="logout"></span></button>
+      <span class="avatar" id="avatar">NH</span>
     </header>
     <main class="content" id="view"></main>
   </div>
@@ -279,7 +301,9 @@ const P = {
   plug:'<path d="M9 2v5M15 2v5M6 7h12v4a6 6 0 0 1-12 0zM12 17v5"/>',
   receipt:'<path d="M5 3h14v18l-3-2-2 2-2-2-2 2-2-2-3 2zM9 8h6M9 12h6"/>',
   paint:'<circle cx="13.5" cy="6.5" r="1.2"/><circle cx="17.5" cy="10.5" r="1.2"/><circle cx="8.5" cy="7.5" r="1.2"/><circle cx="6.5" cy="12.5" r="1.2"/><path d="M12 2a10 10 0 0 0 0 20c1 0 1.7-.8 1.7-1.7 0-.4-.2-.8-.4-1.1-.3-.3-.4-.7-.4-1.1 0-.9.8-1.7 1.7-1.7h2a5.6 5.6 0 0 0 5.4-5.6C22 6 17.5 2 12 2z"/>',
-  ext:'<path d="M14 3h7v7M10 14 21 3M19 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>'
+  ext:'<path d="M14 3h7v7M10 14 21 3M19 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>',
+  shield:'<path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/>',
+  logout:'<path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4M10 17l5-5-5-5M15 12H3"/>'
 };
 const ic = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
 document.querySelectorAll('[data-i]').forEach(e => e.innerHTML = ic(e.dataset.i));
@@ -334,7 +358,8 @@ const NAV = [
   {id:'settings',l:'Beállítások',i:'gear'},
 ];
 function drawNav(cur){
-  document.getElementById('nav').innerHTML = NAV.map(n => n.h ? `<div class="nav-h">${n.h}</div>` :
+  const items = ME && ME.role==='admin' ? [...NAV, {h:'Adminisztráció'}, {id:'users',l:'Felhasználók',i:'shield'}] : NAV;
+  document.getElementById('nav').innerHTML = items.map(n => n.h ? `<div class="nav-h">${n.h}</div>` :
     `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span>${n.cnt?`<span class="cnt">${n.cnt}</span>`:''}</a>`).join('');
   document.getElementById('bnav').innerHTML = NAV.filter(n => n.id && n.id!=='partners').map(n =>
     `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span></a>`).join('');
@@ -449,7 +474,7 @@ V.partners = () => ph('Partnerek','Partnertörzs a Selexsped VIR-ből (csak olva
   `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Aktív megbízás</th><th>Raklapegyenleg</th><th>Visszaviteli szabály</th></tr></thead><tbody>${
   BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono">${ORDERS.filter(o=>o.partner===b.p&&o.status!=='Lezárva').length}</td><td class="mono">${b.out}</td><td class="muted">${b.ret}</td></tr>`).join('')}</tbody></table></div></div>`;
 
-V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjelenés') +
+V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjelenés', ME&&ME.role==='admin' ? `<a class="btn" href="#users">${ic('shield')}Felhasználók kezelése</a>` : '') +
   `<div class="set-grid">
    <div class="card"><div class="card-h"><h3>Integrációk</h3></div><div class="list">
      ${intg('Selexsped VIR API','Megbízások és partnertörzs','API-dokumentációra vár','warn')}
@@ -497,7 +522,7 @@ function openOrder(no){
   document.getElementById('drawer').innerHTML = `
   <div class="dr-h"><div><div class="muted" style="font-size:12px">Megbízás (Selexsped)</div><h2 class="mono">${o.no}</h2><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${chip(o.status,STATUS_CLS[o.status])}${o.risk?chip('ETA késés','bad'):''}</div></div><button class="iconbtn" style="margin-left:auto" id="closeDr">${ic('x')}</button></div>
   <div class="dr-b">
-    <div class="sec"><h5>Partner</h5><div class="kv"><span class="k">Megbízó</span><span>${o.partner}</span><span class="k">Nyelv</span><span>HU / EN</span></div></div>
+    <div class="sec"><h5>Partner</h5><div class="kv"><span class="k">Megbízó</span><span>${o.partner}</span><span class="k">Nyelv</span><span>HU / EN</span><span class="k">Utoljára módosította</span><span>Minta Fuvarszervező · 10.29. 09:41</span></div></div>
     <div class="sec"><h5>Útvonal</h5><div class="route"><div><b>${o.from}</b><div class="muted">Felrakás: ${o.load}</div></div><div><b>${o.to}</b><div class="muted">Lerakási ablak: ${o.unload}</div></div></div></div>
     <div class="sec"><h5>Raklapcsere</h5>${o.pallet?`<div class="kv"><span class="k">Darab / típus</span><span>${o.pallet.n} × ${o.pallet.t}</span><span class="k">Raklapjegy</span><span>${chip('Várakozik','warn')}</span><span class="k">Határidő</span><span>Lerakás + 3 nap</span></div>`:`<span class="muted">Nem raklapcserés</span> ${btn('Raklapcserésnek jelöl','pallet','sm')}`}</div>
     <div class="sec"><h5>Jármű</h5><div class="kv"><span class="k">Rendszám</span><span class="mono">${o.veh}</span><span class="k">ETA</span><span class="mono">${o.eta}</span><span class="k">Lekövetés</span><span class="muted">Automatikusan létrejön (első körben opcionális)</span></div></div>
@@ -506,6 +531,209 @@ function openOrder(no){
   document.getElementById('drawerWrap').classList.add('open');
 }
 function closeOrder(){document.getElementById('drawerWrap').classList.remove('open')}
+
+/* ---------- Belépés: jelszó + hitelesítő alkalmazás (TOTP) ----------
+   BEMUTATÓ: minden a böngészőben fut és tárolódik, valódi védelmet nem ad.
+   Az éles rendszerben ugyanez a szerveren történik. */
+const AUTH_KEY='nhc-proto-auth', SESS_KEY='nhc-proto-sess';
+const enc=new TextEncoder();
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function sha256(s){const h=await crypto.subtle.digest('SHA-256',enc.encode(s));return [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join('')}
+const B32='ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function b32enc(bytes){let bits=0,val=0,out='';for(const b of bytes){val=(val<<8)|b;bits+=8;while(bits>=5){out+=B32[(val>>>(bits-5))&31];bits-=5}}if(bits>0)out+=B32[(val<<(5-bits))&31];return out}
+function b32dec(s){let bits=0,val=0;const out=[];for(const c of s.toUpperCase()){const i=B32.indexOf(c);if(i<0)continue;val=(val<<5)|i;bits+=5;if(bits>=8){out.push((val>>>(bits-8))&255);bits-=8}}return new Uint8Array(out)}
+async function totp(secret,step){
+  const key=await crypto.subtle.importKey('raw',b32dec(secret),{name:'HMAC',hash:'SHA-1'},false,['sign']);
+  const msg=new ArrayBuffer(8); new DataView(msg).setUint32(4,step);
+  const h=new Uint8Array(await crypto.subtle.sign('HMAC',key,msg)), o=h[19]&15;
+  return String((((h[o]&127)<<24)|(h[o+1]<<16)|(h[o+2]<<8)|h[o+3])%1e6).padStart(6,'0');
+}
+async function checkTotp(secret,code){const s=Math.floor(Date.now()/30000);for(const d of [-1,0,1]) if(await totp(secret,s+d)===code) return true;return false}
+const rnd=n=>crypto.getRandomValues(new Uint8Array(n));
+const tempPw=()=>[...rnd(8)].map(b=>'abcdefghjkmnpqrstuvwxyz23456789'[b%31]).join('');
+
+let A=null, ME=null;
+function saveAuth(){try{localStorage.setItem(AUTH_KEY,JSON.stringify(A))}catch(e){}}
+async function seedAuth(){
+  try{A=JSON.parse(localStorage.getItem(AUTH_KEY)||'null')}catch(e){}
+  if(A) return;
+  const pw=await sha256('demo');
+  const u=(id,name,user,role)=>({id,name,user,role,pw,mustChange:false,totp:null,backup:[],active:true,fails:0,last:null});
+  A={users:[u(1,'Gergő','gergo','admin'),u(2,'Minta Admin','admin2','admin'),u(3,'Minta Fuvarszervező','fuvar1','user')],log:[]};
+  saveAuth();
+}
+function addLog(action,target,by){A.log.unshift({t:Date.now(),by:by||(ME&&ME.name)||'Rendszer',action,target});A.log=A.log.slice(0,200);saveAuth()}
+const fmtT=t=>t?new Date(t).toLocaleString('hu-HU',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'—';
+
+let authStep='login', pending=null, pendSecret=null, pendCodes=null;
+const authLogo=()=>document.querySelector('.sb-logo svg').outerHTML.replace(/nhcGold/g,'nhcGoldA');
+function renderAuth(err=''){
+  const errHtml=`<div class="err">${err}</div>`;
+  let body='';
+  if(authStep==='login') body=`<h2>Belépés</h2><p>NH Cargo belső rendszer</p>
+    <form id="authForm"><div class="field"><label>Felhasználónév</label><input name="user" autocomplete="username" required></div>
+    <div class="field"><label>Jelszó</label><input name="pw" type="password" autocomplete="current-password" required></div>
+    ${errHtml}<button class="btn pri">Tovább</button></form>
+    <div class="demo-hint"><b>Bemutató:</b> felhasználónév <b>gergo</b>, jelszó <b>demo</b> (admin). Minden csak ebben a böngészőben fut, valódi védelmet nem ad.</div>`;
+  if(authStep==='newpw') body=`<h2>Új jelszó megadása</h2><p>Első belépés vagy visszaállított jelszó: adj meg egy saját jelszót.</p>
+    <form id="authForm"><div class="field"><label>Új jelszó (min. 8 karakter)</label><input name="pw1" type="password" autocomplete="new-password" required></div>
+    <div class="field"><label>Új jelszó még egyszer</label><input name="pw2" type="password" autocomplete="new-password" required></div>
+    ${errHtml}<button class="btn pri">Mentés</button></form>`;
+  if(authStep==='enroll') body=`<h2>Hitelesítő alkalmazás beállítása</h2>
+    <ol><li>Telepítsd a telefonodra a Google vagy a Microsoft Authenticator alkalmazást.</li><li>Olvasd be vele a QR-kódot.</li><li>Írd be az alkalmazásban megjelenő 6 jegyű kódot.</li></ol>
+    <div class="qr" id="qr"></div><div class="secret" title="Ha nem tudod beolvasni, ezt a kulcsot add meg kézzel">${pendSecret.match(/.{1,4}/g).join(' ')}</div>
+    <form id="authForm"><div class="field"><label>6 jegyű kód</label><input name="code" class="otp" inputmode="numeric" maxlength="7" autocomplete="one-time-code" required></div>
+    ${errHtml}<button class="btn pri">Párosítás</button></form>`;
+  if(authStep==='codes') body=`<h2>Tartalékkódok</h2><p>Ha elveszíted a telefonod, ezekkel egyszer-egyszer be tudsz lépni. Írd fel vagy mentsd el őket biztonságos helyre.</p>
+    <div class="codes">${pendCodes.map(c=>`<span>${c}</span>`).join('')}</div>
+    <button class="btn pri" id="authDone" type="button">Elmentettem, tovább</button>`;
+  if(authStep==='otp') body=`<h2>Kétlépcsős azonosítás</h2><p>Írd be a hitelesítő alkalmazásban látható 6 jegyű kódot, vagy egy tartalékkódot.</p>
+    <form id="authForm"><div class="field"><label>Kód</label><input name="code" class="otp" inputmode="numeric" autocomplete="one-time-code" required></div>
+    ${errHtml}<button class="btn pri">Belépés</button></form>
+    <button class="btn" id="authBack" type="button" style="margin-top:8px">Vissza</button>`;
+  document.getElementById('auth').innerHTML=`<div class="auth-card"><div class="logo">${authLogo()}</div>${body}</div>`;
+  if(authStep==='enroll') drawQr();
+  const f=document.querySelector('#auth input'); if(f) f.focus();
+}
+let qrLib=null;
+async function drawQr(){
+  const el=document.getElementById('qr');
+  const url=`otpauth://totp/${encodeURIComponent('NH Cargo:'+pending.user)}?secret=${pendSecret}&issuer=${encodeURIComponent('NH Cargo')}&digits=6&period=30`;
+  try{
+    if(!qrLib){await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)});qrLib=window.QRCode}
+    el.innerHTML=''; new qrLib(el,{text:url,width:180,height:180,correctLevel:qrLib.CorrectLevel.M});
+  }catch(e){el.innerHTML='<span style="color:#555;font-size:12px;padding:8px">A QR-kód nem tölthető be, add meg kézzel a lenti kulcsot.</span>'}
+}
+function nextStep(){
+  if(pending.mustChange) authStep='newpw';
+  else if(!pending.totp){authStep='enroll';pendSecret=b32enc(rnd(20))}
+  else authStep='otp';
+  renderAuth();
+}
+async function authSubmit(fd){
+  if(authStep==='login'){
+    const u=A.users.find(x=>x.user===String(fd.get('user')).trim().toLowerCase());
+    if(!u||!u.active) return renderAuth('Hibás felhasználónév vagy jelszó, vagy a fiók le van tiltva.');
+    if(u.fails>=5) return renderAuth('A fiók 5 hibás próbálkozás miatt zárolva. Kérd egy admin segítségét.');
+    if(await sha256(fd.get('pw'))!==u.pw){
+      u.fails++; saveAuth();
+      if(u.fails>=5) addLog('Fiók zárolva (5 hibás jelszó)',u.name,'Rendszer');
+      return renderAuth(`Hibás felhasználónév vagy jelszó (${u.fails}/5).`);
+    }
+    u.fails=0; saveAuth(); pending=u; return nextStep();
+  }
+  if(authStep==='newpw'){
+    const a=fd.get('pw1'), b=fd.get('pw2');
+    if(a.length<8) return renderAuth('A jelszó legalább 8 karakter legyen.');
+    if(a!==b) return renderAuth('A két jelszó nem egyezik.');
+    pending.pw=await sha256(a); pending.mustChange=false; saveAuth(); return nextStep();
+  }
+  if(authStep==='enroll'){
+    if(!await checkTotp(pendSecret,String(fd.get('code')).replace(/\s/g,''))) return renderAuth('Hibás kód. Ellenőrizd, hogy a telefon órája pontos-e.');
+    pending.totp=pendSecret; pendCodes=[...Array(8)].map(()=>{const p=tempPw();return p.slice(0,4)+'-'+p.slice(4)});
+    pending.backup=pendCodes.slice(); saveAuth(); addLog('Hitelesítő beállítva',pending.name,pending.name);
+    authStep='codes'; return renderAuth();
+  }
+  if(authStep==='otp'){
+    const c=String(fd.get('code')).trim().toLowerCase(), digits=c.replace(/\s/g,'');
+    let ok=/^\d{6}$/.test(digits)&&await checkTotp(pending.totp,digits);
+    if(!ok){const i=pending.backup.indexOf(c);if(i>=0){pending.backup.splice(i,1);ok=true;addLog('Belépés tartalékkóddal',pending.name,pending.name)}}
+    if(!ok) return renderAuth('Hibás kód.');
+    return finishLogin();
+  }
+}
+function finishLogin(){
+  ME=pending; pending=null; pendSecret=null; pendCodes=null;
+  ME.last=Date.now(); addLog('Belépés',ME.name);
+  try{sessionStorage.setItem(SESS_KEY,String(ME.id))}catch(e){}
+  document.body.classList.remove('locked'); updateTop();
+  if(!location.hash) location.hash='#dash'; route();
+}
+function logout(){
+  addLog('Kilépés',ME.name); ME=null;
+  try{sessionStorage.removeItem(SESS_KEY)}catch(e){}
+  authStep='login'; document.body.classList.add('locked'); renderAuth();
+}
+function updateTop(){
+  const a=document.getElementById('avatar');
+  a.textContent=ME.name.split(/\s+/).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  a.title=`${ME.name} (${ME.role==='admin'?'admin':'fuvarszervező'})`;
+}
+async function initAuth(){
+  await seedAuth();
+  let sid=null; try{sid=sessionStorage.getItem(SESS_KEY)}catch(e){}
+  const u=A.users.find(x=>String(x.id)===sid&&x.active);
+  if(u){ME=u;document.body.classList.remove('locked');updateTop();route()}
+  else{document.body.classList.add('locked');renderAuth()}
+}
+
+/* ---------- Felhasználók (csak admin) ---------- */
+let showNew=false, userMsg='';
+const ub=(t,a,u)=>`<button class="btn sm" data-ua="${a}" data-uid="${u.id}">${t}</button>`;
+V.users = () => {
+  if(!ME||ME.role!=='admin') return ph('Nincs jogosultság','Ezt az oldalt csak admin láthatja.');
+  const admins=A.users.filter(x=>x.role==='admin'&&x.active).length;
+  const rows=A.users.map(u=>{
+    const locked=u.fails>=5;
+    const st=!u.active?chip('Letiltva','bad'):locked?chip('Zárolva','warn'):u.mustChange?chip('Első belépésre vár','info'):chip('Aktív','ok');
+    return `<tr><td><b>${esc(u.name)}</b>${u.id===ME.id?' <span class="muted">(te)</span>':''}</td><td class="mono">${esc(u.user)}</td>
+      <td>${u.role==='admin'?chip('Admin','acc'):chip('Fuvarszervező')}</td><td>${u.totp?chip('Beállítva','ok'):chip('Nincs','warn')}</td>
+      <td class="mono">${fmtT(u.last)}</td><td>${st}</td>
+      <td><div class="urow">${(locked?ub('Feloldás','unlock',u):'')+ub(u.active?'Letiltás':'Engedélyezés','active',u)+ub('Új jelszó','pw',u)+ub('Hitelesítő törlése','totp',u)+ub(u.role==='admin'?'Admin jog elvétele':'Admin jog','admin',u)}</div></td></tr>`;
+  }).join('');
+  return ph('Felhasználók',`Belépés, szerepkörök és hitelesítők · ${admins} aktív admin (javasolt: 2–3)`, btn('Új felhasználó','users','pri','id="addUser"')+btn('Bemutató visszaállítása','refresh','','id="resetDemo"')) +
+  `<div class="notice">${ic('alert')}<div><b>Bemutató:</b> a felhasználók, jelszavak és hitelesítők csak ebben a böngészőben tárolódnak. Az éles rendszerben ez a szerveren, titkosítva történik.</div></div>` +
+  (userMsg?`<div class="notice" style="background:var(--ok-soft)">${ic('check')}<div>${userMsg}</div></div>`:'') +
+  (showNew?`<div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Új felhasználó</h3></div><div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end">
+    <div class="field" style="margin:0"><label>Név</label><input id="nuName"></div>
+    <div class="field" style="margin:0"><label>Felhasználónév</label><input id="nuUser"></div>
+    <div class="field" style="margin:0"><label>Szerepkör</label><select id="nuRole"><option value="user">Fuvarszervező</option><option value="admin">Admin</option></select></div>
+    <button class="btn pri" id="createUser">Létrehozás</button></div></div>`:'') +
+  `<div class="card"><div class="tw"><table><thead><tr><th>Név</th><th>Felhasználónév</th><th>Szerepkör</th><th>Hitelesítő</th><th>Utolsó belépés</th><th>Állapot</th><th>Műveletek</th></tr></thead><tbody>${rows}</tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><div class="card-h"><h3>Napló</h3><span class="r muted" style="font-size:12px">ki, mikor, mit csinált</span></div><div class="tw"><table><thead><tr><th>Időpont</th><th>Ki</th><th>Művelet</th><th>Érintett</th></tr></thead><tbody>${
+    A.log.slice(0,30).map(l=>`<tr><td class="mono">${fmtT(l.t)}</td><td>${esc(l.by)}</td><td>${esc(l.action)}</td><td>${esc(l.target)}</td></tr>`).join('')||'<tr><td colspan="4" class="muted">Még nincs bejegyzés</td></tr>'
+  }</tbody></table></div></div>`;
+};
+async function userAction(a,id){
+  const u=A.users.find(x=>x.id===id); if(!u) return;
+  const lastAdmin=u.role==='admin'&&u.active&&A.users.filter(x=>x.role==='admin'&&x.active).length<=1;
+  userMsg='';
+  if(a==='active'){
+    if(u.id===ME.id) return toast('Saját magadat nem tilthatod le.');
+    if(u.active&&lastAdmin) return toast('Az utolsó admin nem tiltható le.');
+    u.active=!u.active; addLog(u.active?'Engedélyezve':'Letiltva',u.name);
+  }
+  if(a==='admin'){
+    if(u.role==='admin'){
+      if(u.id===ME.id) return toast('Saját admin jogodat nem veheted el.');
+      if(lastAdmin) return toast('Az utolsó admintól nem vehető el a jog.');
+      u.role='user'; addLog('Admin jog elvéve',u.name);
+    } else { u.role='admin'; addLog('Admin jog megadva',u.name); }
+  }
+  if(a==='pw'){
+    const p=tempPw(); u.pw=await sha256(p); u.mustChange=true; u.fails=0;
+    userMsg=`<b>${esc(u.name)}</b> ideiglenes jelszava: <b class="mono">${p}</b>. Add át neki személyesen; első belépéskor saját jelszót kell megadnia.`;
+    addLog('Jelszó visszaállítva',u.name);
+  }
+  if(a==='totp'){
+    u.totp=null; u.backup=[];
+    userMsg=`<b>${esc(u.name)}</b> hitelesítője törölve: következő belépéskor újra párosítania kell a telefonját.`;
+    addLog('Hitelesítő törölve',u.name);
+  }
+  if(a==='unlock'){ u.fails=0; addLog('Fiók feloldva',u.name); }
+  saveAuth(); route();
+}
+async function createUser(){
+  const n=document.getElementById('nuName').value.trim(), us=document.getElementById('nuUser').value.trim().toLowerCase(), r=document.getElementById('nuRole').value;
+  if(!n||!us) return toast('Add meg a nevet és a felhasználónevet.');
+  if(!/^[a-z0-9._-]{3,}$/.test(us)) return toast('Felhasználónév: legalább 3 karakter (kisbetű, szám, pont, kötőjel).');
+  if(A.users.some(x=>x.user===us)) return toast('Ez a felhasználónév már foglalt.');
+  const p=tempPw();
+  A.users.push({id:Math.max(...A.users.map(x=>x.id))+1,name:n,user:us,role:r,pw:await sha256(p),mustChange:true,totp:null,backup:[],active:true,fails:0,last:null});
+  addLog(r==='admin'?'Új admin létrehozva':'Új felhasználó létrehozva',n);
+  userMsg=`<b>${esc(n)}</b> létrehozva. Ideiglenes jelszó: <b class="mono">${p}</b>. Add át személyesen; első belépéskor saját jelszót és hitelesítőt állít be.`;
+  showNew=false; saveAuth(); route();
+}
 
 /* ---------- Router és események ---------- */
 let palTab='docs';
@@ -556,6 +784,7 @@ async function gotoPage(d){
   PHOTO.page=n; await renderPdfPage(PHOTO); route();
 }
 function route(){
+  if(!ME) return;
   const v=(location.hash||'#dash').slice(1); const view=V[v]?v:'dash';
   drawNav(view); closeOrder();
   document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
@@ -568,6 +797,13 @@ document.addEventListener('click',e=>{
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  if(t.closest('#logoutBtn')) return logout();
+  if(t.closest('#authDone')) return finishLogin();
+  if(t.closest('#authBack')){authStep='login';pending=null;return renderAuth()}
+  if(t.closest('#addUser')){showNew=!showNew;userMsg='';return route()}
+  if(t.closest('#createUser')) return createUser();
+  if(t.closest('#resetDemo')){if(confirm('Visszaállítod a bemutató felhasználóit? A saját hitelesítőd párosítása is törlődik.')){try{localStorage.removeItem(AUTH_KEY);sessionStorage.removeItem(SESS_KEY)}catch(e){}location.reload()}return}
+  const ua=t.closest('[data-ua]'); if(ua) return userAction(ua.dataset.ua,Number(ua.dataset.uid));
   const bv=t.closest('[data-balv]'); if(bv){balView=bv.dataset.balv;return route()}
   const ch=t.closest('[data-charge]'); if(ch){chargeTo=ch.dataset.charge;document.querySelectorAll('[data-charge]').forEach(b=>b.classList.toggle('on',b===ch));return}
   if(t.closest('#approveBtn')) return toast(chargeTo ? `Prototípus: a 3 db hiány a(z) ${chargeTo==='client'?'megbízó':'alvállalkozó'} egyenlegére kerülne.` : 'Előbb válaszd ki, kire terheljük a hiányt.');
@@ -587,8 +823,9 @@ document.addEventListener('input',e=>{
   if(e.target.id==='subIn'){S.sub=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeOrder()});
+document.addEventListener('submit',e=>{if(e.target.id==='authForm'){e.preventDefault();authSubmit(new FormData(e.target))}});
 window.addEventListener('hashchange',route);
-apply(); route();
+apply(); initAuth();
 </script>
 </body>
 </html>
