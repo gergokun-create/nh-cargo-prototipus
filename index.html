@@ -191,6 +191,16 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:8px;font-size:13px;opacity:0;transition:.2s;z-index:30;pointer-events:none;max-width:calc(100% - 32px)}
 .toast.on{opacity:1;transform:translateX(-50%)}
 
+/* Térkép */
+.map{height:420px;position:relative;isolation:isolate;z-index:0;background:var(--surface-2)}
+.vpin{display:inline-flex;align-items:center;gap:4px;background:#fff;color:#1c1e22;border:2px solid #8a8676;border-radius:999px;padding:2px 8px 2px 5px;font:600 11px Inter,system-ui,sans-serif;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.3);transform:translate(-50%,-50%);width:max-content}
+.vpin svg{width:14px;height:14px}
+.vpin.ok{border-color:#2f7d5b}.vpin.bad{border-color:#c0392b;background:#fdecea}.vpin.warn{border-color:#b7791f}
+.maplegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px var(--pad);font-size:12px;color:var(--muted);border-top:1px solid var(--border)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}}
+:root[data-theme="dark"] .map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+@media (max-width:760px){.map{height:300px}}
+
 /* Belépés */
 body.locked .app, body.locked .bnav{display:none}
 .auth{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--sb-bg)}
@@ -467,8 +477,11 @@ function palIssues(){return `<div class="card"><div class="list">
 
 V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható: kézi státusz és Excel-feltöltés', btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
   `<div class="grid prov" style="margin-bottom:16px">${['WebEye','Multi Alarm','Fleetcore'].map(p=>`<div class="card"><div class="card-b"><div style="display:flex;align-items:center;gap:8px"><h4>${p}</h4><span style="margin-left:auto">${chip('Nincs bekötve')}</span></div><div class="muted" style="font-size:13px">Saját csatlakozó (adapter) · pozíció, ETA, vezetési idő</div></div></div>`).join('')}</div>
+  <div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Térkép</h3><label class="r muted" style="font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="trafficTgl">Forgalom</label></div>
+    <div id="fleetMap" class="map"></div>
+    <div class="maplegend">${chip('Rendben','ok')}${chip('ETA késés','bad')}${chip('Nincs pozíció','warn')}<span>Szaggatott vonal: hátralévő út a lerakóig (légvonal) · a pozíciók mintaadatok · kattints egy sorra a táblázatban</span></div></div>
   <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th></tr></thead><tbody>${
-  VEH.map(v=>`<tr><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  VEH.map(v=>`<tr class="click" data-veh="${v.pl}"><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
 
 V.partners = () => ph('Partnerek','Partnertörzs a Selexsped VIR-ből (csak olvasás)') +
   `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Aktív megbízás</th><th>Raklapegyenleg</th><th>Visszaviteli szabály</th></tr></thead><tbody>${
@@ -531,6 +544,46 @@ function openOrder(no){
   document.getElementById('drawerWrap').classList.add('open');
 }
 function closeOrder(){document.getElementById('drawerWrap').classList.remove('open')}
+
+/* ---------- Térkép (Leaflet + OpenStreetMap; a forgalmi réteghez szolgáltató kell) ---------- */
+const VPOS = {
+  'MINTA-101':{ll:[48.30,14.29],dest:[48.14,11.58],to:'München'},
+  'MINTA-102':{ll:[47.92,17.15],dest:[48.21,16.37],to:'Wien'},
+  'MINTA-103':{ll:[47.53,21.63],dest:[50.06,19.94],to:'Kraków'},
+};
+const LEAF='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
+let leafLib=null, fmap=null, fmarkers={};
+async function loadLeaflet(){
+  if(leafLib) return leafLib;
+  // A stíluslapot is megvárjuk, különben a térkép rossz méretekkel indul
+  await Promise.all([
+    new Promise((res,rej)=>{const c=document.createElement('link');c.rel='stylesheet';c.href=LEAF+'leaflet.min.css';c.onload=res;c.onerror=rej;document.head.appendChild(c)}),
+    new Promise((res,rej)=>{const s=document.createElement('script');s.src=LEAF+'leaflet.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s)}),
+  ]);
+  return leafLib=window.L;
+}
+async function initMap(){
+  const el=document.getElementById('fleetMap'); if(!el) return;
+  try{
+    const L=await loadLeaflet();
+    if(!document.body.contains(el)) return;
+    if(fmap){fmap.remove();fmap=null}
+    fmap=L.map(el).setView([48.6,17],6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap közreműködők'}).addTo(fmap);
+    fmarkers={}; const pts=[];
+    VEH.forEach(v=>{
+      const p=VPOS[v.pl]; if(!p) return;
+      const icon=L.divIcon({className:'',html:`<div class="vpin ${v.st}">${ic('truck')}${v.pl}</div>`,iconSize:[0,0],iconAnchor:[0,0]});
+      fmarkers[v.pl]=L.marker(p.ll,{icon}).addTo(fmap).bindPopup(`<b>${v.pl}</b><br>Megbízás: ${v.ord}<br>Cél: ${p.to}<br>ETA: ${v.eta} · ablak: ${v.win}<br><span style="color:#888">Forrás: ${v.src} · frissítve ${v.upd}</span>`);
+      L.polyline([p.ll,p.dest],{color:v.st==='bad'?'#c0392b':'#b8963e',weight:3,dashArray:'6 6',opacity:.85}).addTo(fmap);
+      L.circleMarker(p.dest,{radius:5,color:'#555',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(fmap).bindTooltip('Lerakó: '+p.to);
+      pts.push(p.ll,p.dest);
+    });
+    await new Promise(r=>requestAnimationFrame(r));
+    fmap.invalidateSize();
+    if(pts.length&&el.clientHeight>0) fmap.fitBounds(pts,{padding:[30,30],maxZoom:9});
+  }catch(e){ el.innerHTML='<div class="muted" style="padding:16px">A térkép nem tölthető be (internetkapcsolat szükséges).</div>'; }
+}
 
 /* ---------- Belépés: jelszó + hitelesítő alkalmazás (TOTP) ----------
    BEMUTATÓ: minden a böngészőben fut és tárolódik, valódi védelmet nem ad.
@@ -789,6 +842,7 @@ function route(){
   drawNav(view); closeOrder();
   document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
   drawCustom(); window.scrollTo(0,0);
+  if(view==='fleet') initMap();
   const pb=document.getElementById('photoBox'); if(pb) pb.querySelector('img').style.transform=rotT(PHOTO.rot,pb);
 }
 let tt; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
@@ -797,6 +851,9 @@ document.addEventListener('click',e=>{
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  const vr=t.closest('[data-veh]');
+  if(vr){const m=fmarkers[vr.dataset.veh]; if(m&&fmap){document.getElementById('fleetMap').scrollIntoView({behavior:'smooth',block:'center'});fmap.flyTo(m.getLatLng(),9);m.openPopup()} else toast('Ehhez a járműhöz nincs pozíció.'); return}
+  if(t.id==='trafficTgl'){t.checked=false;return toast('A forgalmi réteghez térképszolgáltató kell (pl. TomTom, HERE vagy Google). Választás után bekapcsolható.')}
   if(t.closest('#logoutBtn')) return logout();
   if(t.closest('#authDone')) return finishLogin();
   if(t.closest('#authBack')){authStep='login';pending=null;return renderAuth()}
