@@ -500,6 +500,10 @@ V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjel
      ${intg('Telematika','WebEye · Multi Alarm · Fleetcore','Hozzáférésre vár','')}
      ${intg('Push értesítés','Telepíthető webapp (PWA)','Megerősítésre vár','')}
    </div></div>
+   <div class="card"><div class="card-h"><h3>Értesítések</h3><span class="r">${notifChip()}</span></div><div class="card-b">
+     <p class="muted" style="margin:0 0 12px;font-size:13px">Bemutató: a jelzések (felrakó- és lerakó-közelség) a gép vagy a telefon értesítési sávjában is megjelennek, amíg a rendszer nyitva van egy lapon. Az éles rendszerben ez valódi push-értesítés lesz, amely bezárt alkalmazásnál is megérkezik.</p>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">${notifState()==='granted'?btn('Próbaértesítés','bell','pri','id="notifTest"'):btn('Asztali értesítések engedélyezése','bell','pri','id="notifOn"')}</div>
+     <p class="muted" style="margin:12px 0 0;font-size:12px">iPhone-on értesítés csak akkor működik, ha az oldal a kezdőképernyőre van telepítve (iOS 16.4 vagy újabb).</p></div></div>
    <div class="card"><div class="card-h"><h3>Térkép és forgalom (TomTom)</h3><span class="r">${ttKey()?chip('Kulcs beállítva','ok'):chip('Nincs kulcs','warn')}</span></div><div class="card-b">
      <div class="field"><label>TomTom API-kulcs</label><input id="ttKeyIn" type="password" autocomplete="off" placeholder="${ttKey()?'•••••••• (beállítva)':'Másold be ide a kulcsot'}">
      <span class="hint">Csak ebben a böngészőben tárolódik, sehova nem kerül fel. A TomTomnál a kulcshoz állítsd be a domain-korlátozást.</span></div>
@@ -581,10 +585,32 @@ function checkGeofence(){
       if(d!=null&&d<=r&&!geoFired.has(key)){
         geoFired.add(key); GEO_ALERTS.unshift({t:Date.now(),kind,pl:v.pl,ord:v.ord,d,place});
         updateBell(); toast(`${v.pl} a ${word} közelében (${fmtKm(d)}) · ${v.ord}`);
+        notify(`Jármű a ${word} közelében`,`${v.pl} · ${v.ord} · ${place} · ${fmtKm(d)}`,key);
       }
     }
   });
 }
+
+/* ---------- Asztali értesítés (bemutató: csak nyitott oldalnál; valódi push az éles rendszerben) ---------- */
+let swReg=null;
+if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').then(r=>{swReg=r}).catch(()=>{});
+const notifState=()=>!('Notification' in window)?'unsupported':Notification.permission;
+function notify(title,body,tag){
+  if(notifState()!=='granted') return;
+  const opt={body,tag,icon:fav.href};
+  // Androidon csak a service workeren keresztül lehet értesítést mutatni
+  if(swReg&&swReg.showNotification) swReg.showNotification('NH Cargo – '+title,opt).catch(()=>{});
+  else try{new Notification('NH Cargo – '+title,opt)}catch(e){}
+}
+async function enableNotif(){
+  if(notifState()==='unsupported') return toast('Ez a böngésző nem támogatja az értesítéseket. iPhone-on előbb add hozzá az oldalt a kezdőképernyőhöz.');
+  if(notifState()==='denied') return toast('Az értesítések le vannak tiltva ennél az oldalnál: a böngésző címsorában, a lakat ikonnál engedélyezheted.');
+  const p=await Notification.requestPermission();
+  toast(p==='granted'?'Asztali értesítések bekapcsolva.':'Az értesítések nincsenek engedélyezve.');
+  if(p==='granted') notify('Próbaértesítés','Így fog kinézni egy jelzés, pl. ha egy jármű a lerakó közelébe ér.','test');
+  route();
+}
+const notifChip=()=>({granted:chip('Bekapcsolva','ok'),denied:chip('Letiltva a böngészőben','bad'),unsupported:chip('Nem támogatott','warn')}[notifState()]||chip('Nincs engedélyezve','warn'));
 
 /* ---------- Helyzet küldése ---------- */
 let shareLang='hu', sharePlate=true, shareFor=null;
@@ -976,6 +1002,8 @@ document.addEventListener('click',e=>{
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
   const sh=t.closest('[data-share]'); if(sh) return openShare(sh.dataset.share);
+  if(t.closest('#notifOn')) return enableNotif();
+  if(t.closest('#notifTest')) return notify('Próbaértesítés','Így fog kinézni egy jelzés, pl. ha egy jármű a lerakó közelébe ér.','test');
   const sm=t.closest('[data-sim]'); if(sm) return runSim(sm.dataset.sim);
   const sl=t.closest('[data-slang]'); if(sl){shareLang=sl.dataset.slang;document.querySelectorAll('[data-slang]').forEach(b=>b.classList.toggle('on',b===sl));document.getElementById('shText').value=shareText();return}
   if(t.id==='shPlate'){sharePlate=t.checked;document.getElementById('shText').value=shareText();return}
