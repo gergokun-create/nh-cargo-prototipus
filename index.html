@@ -197,8 +197,10 @@ pre.out{background:var(--surface-2);border:1px solid var(--border);border-radius
 .vpin svg{width:14px;height:14px}
 .vpin.ok{border-color:#2f7d5b}.vpin.bad{border-color:#c0392b;background:#fdecea}.vpin.warn{border-color:#b7791f}
 .maplegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;padding:10px var(--pad);font-size:12px;color:var(--muted);border-top:1px solid var(--border)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}}
-:root[data-theme="dark"] .map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .map .base-tiles{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}}
+:root[data-theme="dark"] .map .base-tiles{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}
+.tleg{display:inline-flex;align-items:center;gap:6px}
+.tleg i{display:inline-block;width:18px;height:4px;border-radius:2px}
 @media (max-width:760px){.map{height:300px}}
 
 /* Belépés */
@@ -477,9 +479,9 @@ function palIssues(){return `<div class="card"><div class="list">
 
 V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható: kézi státusz és Excel-feltöltés', btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
   `<div class="grid prov" style="margin-bottom:16px">${['WebEye','Multi Alarm','Fleetcore'].map(p=>`<div class="card"><div class="card-b"><div style="display:flex;align-items:center;gap:8px"><h4>${p}</h4><span style="margin-left:auto">${chip('Nincs bekötve')}</span></div><div class="muted" style="font-size:13px">Saját csatlakozó (adapter) · pozíció, ETA, vezetési idő</div></div></div>`).join('')}</div>
-  <div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Térkép</h3><label class="r muted" style="font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="trafficTgl">Forgalom</label></div>
+  <div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Térkép</h3><label class="r muted" style="font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="trafficTgl" ${trafficOn?'checked':''}>Forgalom (TomTom)</label></div>
     <div id="fleetMap" class="map"></div>
-    <div class="maplegend">${chip('Rendben','ok')}${chip('ETA késés','bad')}${chip('Nincs pozíció','warn')}<span>Szaggatott vonal: hátralévő út a lerakóig (légvonal) · a pozíciók mintaadatok · kattints egy sorra a táblázatban</span></div></div>
+    <div class="maplegend">${chip('Rendben','ok')}${chip('ETA késés','bad')}${chip('Nincs pozíció','warn')}<span class="tleg" id="tlegend" style="${trafficOn?'':'display:none'}">Forgalom: <i style="background:#2fb36b"></i>szabad <i style="background:#f59e0b"></i>lassú <i style="background:#dc2626"></i>torlódás</span><span>Szaggatott vonal: hátralévő út a lerakóig (légvonal) · a pozíciók mintaadatok · kattints egy sorra a táblázatban</span></div></div>
   <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th></tr></thead><tbody>${
   VEH.map(v=>`<tr class="click" data-veh="${v.pl}"><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
 
@@ -497,6 +499,10 @@ V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjel
      ${intg('Telematika','WebEye · Multi Alarm · Fleetcore','Hozzáférésre vár','')}
      ${intg('Push értesítés','Telepíthető webapp (PWA)','Megerősítésre vár','')}
    </div></div>
+   <div class="card"><div class="card-h"><h3>Térkép és forgalom (TomTom)</h3><span class="r">${ttKey()?chip('Kulcs beállítva','ok'):chip('Nincs kulcs','warn')}</span></div><div class="card-b">
+     <div class="field"><label>TomTom API-kulcs</label><input id="ttKeyIn" type="password" autocomplete="off" placeholder="${ttKey()?'•••••••• (beállítva)':'Másold be ide a kulcsot'}">
+     <span class="hint">Csak ebben a böngészőben tárolódik, sehova nem kerül fel. A TomTomnál a kulcshoz állítsd be a domain-korlátozást.</span></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">${btn('Mentés','check','pri','id="ttSave"')}${btn('Kulcs törlése','x','','id="ttDel"')}</div></div></div>
    <div class="card"><div class="card-h"><h3>${ic('paint').replace('<svg','<svg style="width:18px;height:18px;color:var(--accent)"')} Testreszabás</h3><span class="r muted" style="font-size:12px">azonnal látszik</span></div><div class="card-b" id="custom"></div></div>
    </div>`;
 function intg(t,d,s,c){return `<div class="li"><div><div class="t">${t}</div><div class="d">${d}</div></div><span class="tm">${chip(s,c)}</span></div>`}
@@ -569,7 +575,8 @@ async function initMap(){
     if(!document.body.contains(el)) return;
     if(fmap){fmap.remove();fmap=null}
     fmap=L.map(el).setView([48.6,17],6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap közreműködők'}).addTo(fmap);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,className:'base-tiles',attribution:'© OpenStreetMap közreműködők'}).addTo(fmap);
+    if(trafficOn) addTraffic();
     fmarkers={}; const pts=[];
     VEH.forEach(v=>{
       const p=VPOS[v.pl]; if(!p) return;
@@ -584,6 +591,27 @@ async function initMap(){
     if(pts.length&&el.clientHeight>0) fmap.fitBounds(pts,{padding:[30,30],maxZoom:9});
   }catch(e){ el.innerHTML='<div class="muted" style="padding:16px">A térkép nem tölthető be (internetkapcsolat szükséges).</div>'; }
 }
+
+/* Forgalmi réteg (TomTom raszteres csempék). A kulcs csak ebben a böngészőben tárolódik.
+   Költségkímélés: alapból kikapcsolva, 5 percenként frissül, és csak ha a lap látható. */
+const TT_KEY='nhc-tomtom-key';
+const ttKey=()=>{try{return localStorage.getItem(TT_KEY)||''}catch(e){return ''}};
+let trafficOn=false, tLayers=[], tTimer=null, tErr=false;
+const isDark=()=>{const t=document.documentElement.dataset.theme;return t==='dark'||(!t&&matchMedia('(prefers-color-scheme: dark)').matches)};
+function addTraffic(){
+  const L=leafLib, k=encodeURIComponent(ttKey()); if(!fmap||!L||!k) return;
+  tErr=false;
+  // crossOrigin: a TomTom domain-korlátozása a CORS-fejlécekre épül
+  const opt={maxZoom:18,crossOrigin:true,opacity:.9,attribution:'Forgalom © TomTom'};
+  tLayers=[
+    L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/${isDark()?'relative0-dark':'relative0'}/{z}/{x}/{y}.png?key=${k}`,{...opt,zIndex:5}),
+    L.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/incidents/${isDark()?'s0-dark':'s3'}/{z}/{x}/{y}.png?key=${k}`,{...opt,zIndex:6}),
+  ];
+  tLayers.forEach(l=>{l.on('tileerror',()=>{if(!tErr){tErr=true;toast('A TomTom elutasította a kérést: ellenőrizd a kulcsot és az engedélyezett domaineket.')}});l.addTo(fmap)});
+  clearInterval(tTimer);
+  tTimer=setInterval(()=>{if(document.visibilityState==='visible'&&fmap) tLayers.forEach(l=>l.redraw())},5*60*1000);
+}
+function removeTraffic(){tLayers.forEach(l=>fmap&&fmap.removeLayer(l));tLayers=[];clearInterval(tTimer)}
 
 /* ---------- Belépés: jelszó + hitelesítő alkalmazás (TOTP) ----------
    BEMUTATÓ: minden a böngészőben fut és tárolódik, valódi védelmet nem ad.
@@ -842,7 +870,7 @@ function route(){
   drawNav(view); closeOrder();
   document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
   drawCustom(); window.scrollTo(0,0);
-  if(view==='fleet') initMap();
+  if(view==='fleet') initMap(); else clearInterval(tTimer);
   const pb=document.getElementById('photoBox'); if(pb) pb.querySelector('img').style.transform=rotT(PHOTO.rot,pb);
 }
 let tt; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
@@ -853,7 +881,19 @@ document.addEventListener('click',e=>{
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
   const vr=t.closest('[data-veh]');
   if(vr){const m=fmarkers[vr.dataset.veh]; if(m&&fmap){document.getElementById('fleetMap').scrollIntoView({behavior:'smooth',block:'center'});fmap.flyTo(m.getLatLng(),9);m.openPopup()} else toast('Ehhez a járműhöz nincs pozíció.'); return}
-  if(t.id==='trafficTgl'){t.checked=false;return toast('A forgalmi réteghez térképszolgáltató kell (pl. TomTom, HERE vagy Google). Választás után bekapcsolható.')}
+  if(t.id==='trafficTgl'){
+    if(t.checked&&!ttKey()){t.checked=false;return toast('Előbb add meg a TomTom-kulcsot a Beállítások oldalon.')}
+    trafficOn=t.checked; trafficOn?addTraffic():removeTraffic();
+    const lg=document.getElementById('tlegend'); if(lg) lg.style.display=trafficOn?'':'none';
+    return;
+  }
+  if(t.closest('#ttSave')){
+    const v=document.getElementById('ttKeyIn').value.trim();
+    if(!/^[A-Za-z0-9_-]{16,}$/.test(v)) return toast('Ez nem tűnik érvényes TomTom-kulcsnak.');
+    try{localStorage.setItem(TT_KEY,v)}catch(e){return toast('A böngésző nem engedi menteni a kulcsot.')}
+    toast('Kulcs elmentve ebben a böngészőben.'); return route();
+  }
+  if(t.closest('#ttDel')){try{localStorage.removeItem(TT_KEY)}catch(e){} trafficOn=false; toast('Kulcs törölve.'); return route()}
   if(t.closest('#logoutBtn')) return logout();
   if(t.closest('#authDone')) return finishLogin();
   if(t.closest('#authBack')){authStep='login';pending=null;return renderAuth()}
