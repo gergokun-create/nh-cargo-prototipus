@@ -109,6 +109,8 @@ tbody tr.click:hover td{background:var(--accent-soft)}
 .chip.ok{background:var(--ok-soft);color:var(--ok)}.chip.warn{background:var(--warn-soft);color:var(--warn)}
 .chip.bad{background:var(--bad-soft);color:var(--bad)}.chip.info{background:var(--info-soft);color:var(--info)}
 .chip.acc{background:var(--accent-soft);color:var(--accent)}
+button.rchip{border:1px dashed var(--border);cursor:pointer;background:transparent;opacity:.6}
+button.rchip.on{border:1px solid transparent;opacity:1}
 
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;overflow-x:auto}
 .tabs button{border:0;background:none;padding:10px 12px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
@@ -268,9 +270,8 @@ body:not(.locked) .auth{display:none}
   <div class="main">
     <header class="top">
       <span class="mlogo" id="mlogo"></span>
-      <label class="search"><span data-i="search"></span><input placeholder="Keresés megbízásszám, partner, rendszám…"></label>
+      <label class="search"><span data-i="search"></span><input placeholder="Keresés partner, raklapjegy, rendszám…"></label>
       <div class="sp"></div>
-      <span class="pill" title="Selexsped VIR szinkron"><span class="dot warn"></span>Selexsped: nincs bekötve</span>
       <button class="iconbtn" data-demo title="Értesítések"><span data-i="bell"></span><span class="badge" id="bellCnt">3</span></button>
       <button class="iconbtn" id="logoutBtn" title="Kilépés"><span data-i="logout"></span></button>
       <span class="avatar" id="avatar">NH</span>
@@ -362,7 +363,6 @@ const NAV = [
   {h:'Áttekintés'},
   {id:'dash',l:'Irányítópult',i:'home'},
   {h:'Modulok'},
-  {id:'orders',l:'Megbízások',i:'file'},
   {id:'pallets',l:'Raklapok',i:'pallet',cnt:2},
   {id:'fleet',l:'Járműkövetés',i:'truck',cnt:1},
   {h:'Törzsadat'},
@@ -373,7 +373,7 @@ function drawNav(cur){
   const items = ME && ME.role==='admin' ? [...NAV, {h:'Adminisztráció'}, {id:'users',l:'Felhasználók',i:'shield'}] : NAV;
   document.getElementById('nav').innerHTML = items.map(n => n.h ? `<div class="nav-h">${n.h}</div>` :
     `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span>${n.cnt?`<span class="cnt">${n.cnt}</span>`:''}</a>`).join('');
-  document.getElementById('bnav').innerHTML = NAV.filter(n => n.id && n.id!=='partners').map(n =>
+  document.getElementById('bnav').innerHTML = NAV.filter(n => n.id).map(n =>
     `<a href="#${n.id}" class="${n.id===cur?'on':''}">${ic(n.i)}<span>${n.l}</span></a>`).join('');
 }
 
@@ -392,10 +392,9 @@ function ordersTable(rows){
 /* ---------- Nézetek ---------- */
 const V = {};
 V.dash = () => ph('Irányítópult','Mai állapot egy helyen', btn('Szinkron most','refresh')) +
-  notice('<b>Prototípus.</b> Minden adat minta. A Selexsped API, a Microsoft 365 és a telematika bekötése után valós adatok jelennek meg.') +
-  `<div class="grid kpis">${kpi('Aktív megbízások','file','5','2 úton · 2 felrakásra vár')}${kpi('Raklapcserés nyitott','pallet','4','131 EUR raklap vár elszámolásra')}${kpi('Lejárt raklapjegy','clock','1','határidő után')}${kpi('Aktív riasztás','alert','2','1 ETA-késés · 1 nincs pozíció')}</div>
-  <div class="grid two" style="margin-top:16px">
-    <div class="card"><div class="card-h"><h3>Legutóbbi megbízások</h3><a class="r btn sm" href="#orders">Összes</a></div>${ordersTable(ORDERS.slice(0,5))}</div>
+  notice('<b>Prototípus.</b> Minden adat minta. A Microsoft 365, az AI-kiolvasó és a telematika bekötése után valós adatok jelennek meg.') +
+  `<div class="grid kpis">${kpi('Partnerek','users',String(PARTNERS.length),PARTNERS.filter(x=>x.trusted).length+' bizalmas körös')}${kpi('Raklapcserés nyitott','pallet','4','131 EUR raklap vár elszámolásra')}${kpi('Lejárt raklapjegy','clock','1','határidő után')}${kpi('Aktív riasztás','alert','2','1 ETA-késés · 1 nincs pozíció')}</div>
+  <div style="margin-top:16px">
     <div class="card"><div class="card-h"><h3>Riasztások és teendők</h3></div><div class="list">
       ${alertItem('bad','alert','ETA kicsúszik az ablakból','MINTA-0002 · várható 18:55, ablak 16:00–18:00','12 perce')}
       ${alertItem('bad','clock','Lejárt raklapjegy-határidő','MINTA-0005 · 20 EUR · Minta Partner D Bt.','tegnap')}
@@ -405,10 +404,6 @@ V.dash = () => ph('Irányítópult','Mai állapot egy helyen', btn('Szinkron mos
     </div></div>
   </div>`;
 function alertItem(c,i,t,d,tm){return `<div class="li"><span class="ic chip ${c}" style="padding:0">${ic(i)}</span><div><div class="t">${t}</div><div class="d">${d}</div></div><span class="tm">${tm}</span></div>`}
-
-V.orders = () => ph('Megbízások','Forrás: Selexsped VIR (csak olvasás) · a számozás a Selexspedé', btn('Szinkron most','refresh')) +
-  `<div class="filters"><select><option>Minden státusz</option>${Object.keys(STATUS_CLS).map(s=>`<option>${s}</option>`).join('')}</select><select><option>Minden partner</option></select><select><option>Raklapcsere: mind</option><option>Csak raklapcserés</option></select><input type="date"></div>
-  <div class="card">${ordersTable(ORDERS)}</div>`;
 
 V.pallets = (tab='docs') => ph('Raklapok','Raklapjegyek, AI-kiolvasás, egyenlegek, hiányok', btn('Fotó / PDF feltöltése','upload','pri','data-upload')) +
   `<div class="tabs" id="ptabs">${[['docs','Várt dokumentumok'],['ai','AI-ellenőrzés (1)'],['bal','Partneregyenleg'],['issues','Problémák (1)']].map(([k,l])=>`<button data-tab="${k}" class="${k===tab?'on':''}">${l}</button>`).join('')}</div>` +
@@ -485,16 +480,70 @@ V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható', bt
   <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th><th></th></tr></thead><tbody>${
   VEH.map(v=>`<tr class="click" data-veh="${v.pl}"><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${alertCell(v)}</td><td>${btn('Helyzet küldése','ext','sm',`data-share="${v.pl}"`)}</td></tr>`).join('')}</tbody></table></div></div>`;
 
-V.partners = () => ph('Partnerek','Partnertörzs a Selexsped VIR-ből (csak olvasás)') +
-  `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Aktív megbízás</th><th>Raklapegyenleg</th><th>Visszaviteli szabály</th></tr></thead><tbody>${
-  BAL.map(b=>`<tr><td><b>${b.p}</b></td><td class="mono">${ORDERS.filter(o=>o.partner===b.p&&o.status!=='Lezárva').length}</td><td class="mono">${b.out}</td><td class="muted">${b.ret}</td></tr>`).join('')}</tbody></table></div></div>`;
+/* ---------- Partner-adatbázis (a raklapos levelekből épül) ---------- */
+const ROLES = [['megbizo','Megbízó','acc'],['felrako','Felrakó','info'],['lerako','Lerakó','ok'],['alvi','Alvállalkozó','warn']];
+const P_KEY = 'nhc-proto-partners';
+const P_DEMO = [
+  {id:1,name:'Minta Partner A Kft.',roles:['megbizo'],trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:2,name:'Minta Partner B Zrt.',roles:['megbizo','felrako'],trusted:false,src:'raklap@ e-mail',first:'10.22.',by:'Rendszer'},
+  {id:3,name:'Minta Partner C Kft.',roles:['megbizo'],trusted:false,src:'Kézi feltöltés',first:'10.24.',by:'Minta Fuvarszervező'},
+  {id:4,name:'Minta Raktár Kft. (Budapest)',roles:['felrako'],trusted:false,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:5,name:'Minta Logistik GmbH (München)',roles:['lerako'],trusted:false,src:'raklap@ e-mail',first:'10.23.',by:'Rendszer'},
+  {id:6,name:'Minta Fuvarozó Kft.',roles:['alvi'],trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:7,name:'Minta Fuvarozó B Bt.',roles:['alvi'],trusted:false,src:'Kézi feltöltés',first:'10.27.',by:'Minta Admin'},
+];
+let PARTNERS = P_DEMO.map(x=>({...x,roles:[...x.roles]}));
+try{const v=JSON.parse(localStorage.getItem(P_KEY)); if(Array.isArray(v)) PARTNERS=v}catch(e){}
+const savePartners=()=>{try{localStorage.setItem(P_KEY,JSON.stringify(PARTNERS))}catch(e){}};
+let pRole='all', pQ='', pTrust=false;
+function touchPartner(x,action){x.by=(ME&&ME.name)||'Rendszer'; savePartners(); addLog(action,x.name)}
+V.partners = () => {
+  const list = PARTNERS.filter(x => (pRole==='all'||x.roles.includes(pRole)) && (!pTrust||x.trusted) && x.name.toLowerCase().includes(pQ.toLowerCase()));
+  const cnt = r => PARTNERS.filter(x=>x.roles.includes(r)).length;
+  return ph('Partnerek','A raklapos levelekből és a jóváhagyásokból épül · szerep és bizalmas kör itt állítható') +
+  notice('Új partner automatikusan kerül ide, amikor egy raklapjegy jóváhagyásakor új név jön elő. A jóváhagyó elfogadja vagy javítja a nevet, így egy cég nem lesz kétszer a listában.') +
+  `<div class="filters" style="align-items:center">
+    <div class="seg"><button data-prf="all" class="${pRole==='all'?'on':''}">Mind (${PARTNERS.length})</button>${ROLES.map(([k,l])=>`<button data-prf="${k}" class="${pRole===k?'on':''}">${l} (${cnt(k)})</button>`).join('')}</div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="pTrustF" ${pTrust?'checked':''}>Csak bizalmas kör</label>
+    <input id="pSearch" placeholder="Keresés névre" value="${esc(pQ)}" style="min-width:200px">
+  </div>
+  <div class="card" style="margin-bottom:16px"><div class="tw"><table><thead><tr><th>Név</th><th>Szerep (kattintással állítható)</th><th>Bizalmas kör</th><th>Forrás</th><th>Első előfordulás</th><th>Utoljára módosította</th><th></th></tr></thead><tbody>${
+    list.map(x=>`<tr><td><b>${esc(x.name)}</b></td>
+      <td><div style="display:flex;gap:6px;flex-wrap:wrap">${ROLES.map(([k,l,c])=>`<button class="chip rchip ${c} ${x.roles.includes(k)?'on':''}" data-prole="${x.id}|${k}">${l}</button>`).join('')}</div></td>
+      <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-ptrust="${x.id}" ${x.trusted?'checked':''}>${x.trusted?chip('Bizalmas','acc'):''}</label></td>
+      <td class="muted">${esc(x.src)}</td><td class="mono">${esc(x.first)}</td><td>${esc(x.by)}</td>
+      <td>${btn('Átnevezés','','sm',`data-prename="${x.id}"`)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nincs találat</td></tr>'
+  }</tbody></table></div></div>
+  <div class="card"><div class="card-h"><h3>Új partner kézzel</h3></div><div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div class="field" style="margin:0;flex:1;min-width:220px"><label>Név</label><input id="npName" placeholder="Cégnév"></div>
+    <div class="field" style="margin:0"><label>Szerep</label><div style="display:flex;gap:8px;flex-wrap:wrap">${ROLES.map(([k,l])=>`<label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" data-nprole="${k}">${l}</label>`).join('')}</div></div>
+    <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="npTrust">Bizalmas kör</label>
+    ${btn('Hozzáadás','check','pri','id="npAdd"')}
+  </div></div>`;
+};
+function partnerClick(t){
+  const f=t.closest('[data-prf]'); if(f){pRole=f.dataset.prf;route();return true}
+  const r=t.closest('[data-prole]'); if(r){const [id,k]=r.dataset.prole.split('|'); const x=PARTNERS.find(p=>p.id==id);
+    if(x.roles.includes(k)&&x.roles.length===1){toast('Legalább egy szerep kell.');return true}
+    x.roles=x.roles.includes(k)?x.roles.filter(z=>z!==k):[...x.roles,k];
+    touchPartner(x,'Partner szerepe módosítva: '+x.roles.map(z=>ROLES.find(q=>q[0]===z)[1]).join(', ')); route(); return true}
+  const n=t.closest('[data-prename]'); if(n){const x=PARTNERS.find(p=>p.id==n.dataset.prename); const v=(prompt('Új név:',x.name)||'').trim();
+    if(v&&v!==x.name){if(PARTNERS.some(p=>p!==x&&p.name.toLowerCase()===v.toLowerCase())){toast('Ilyen nevű partner már van.');return true}
+      const old=x.name; x.name=v; touchPartner(x,'Partner átnevezve ('+old+' → '+v+')'); route()} return true}
+  if(t.closest('#npAdd')){const v=document.getElementById('npName').value.trim(); const roles=[...document.querySelectorAll('[data-nprole]:checked')].map(c=>c.dataset.nprole);
+    if(!v){toast('Add meg a nevet.');return true} if(!roles.length){toast('Válassz legalább egy szerepet.');return true}
+    if(PARTNERS.some(p=>p.name.toLowerCase()===v.toLowerCase())){toast('Ilyen nevű partner már van.');return true}
+    const x={id:Math.max(0,...PARTNERS.map(p=>p.id))+1,name:v,roles,trusted:document.getElementById('npTrust').checked,src:'Kézzel felvéve',first:new Date().toLocaleDateString('hu-HU',{month:'2-digit',day:'2-digit'}),by:''};
+    PARTNERS.push(x); touchPartner(x,'Új partner felvéve'); toast('Partner hozzáadva.'); route(); return true}
+  return false;
+}
 
 V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjelenés', ME&&ME.role==='admin' ? `<a class="btn" href="#users">${ic('shield')}Felhasználók kezelése</a>` : '') +
   `<div class="set-grid">
    <div class="card"><div class="card-h"><h3>Integrációk</h3></div><div class="list">
-     ${intg('Selexsped VIR API','Megbízások és partnertörzs','API-dokumentációra vár','warn')}
+     ${intg('Selexsped VIR','Megbízások (nincs API, SQL-nézet)','Később, a teljes VIR-rel','')}
      ${intg('Microsoft Entra ID','Belépés Microsoft-fiókkal','Beállítás alatt','warn')}
-     ${intg('SharePoint','Megbízások mentése, mappák','Webhely nincs megadva','')}
+     ${intg('SharePoint','Raklapjegyek mentése','Webhely nincs megadva','')}
      ${intg('Képfelismerés (Claude API)','Raklapjegy / CMR kiolvasás','Nincs beállítva','')}
      ${intg('Telematika','WebEye · Multi Alarm · Fleetcore','Hozzáférésre vár','')}
      ${intg('Push értesítés','Telepíthető webapp (PWA)','Megerősítésre vár','')}
@@ -988,12 +1037,18 @@ document.addEventListener('click',e=>{
   if(t.closest('#zoomBtn')||t.closest('#photoBox')){const im=lb.querySelector('img');im.src=PHOTO.img;lb.classList.add('on');im.style.transform=rotT(PHOTO.rot,lb);return}
   if(t.closest('#lb')) return lb.classList.remove('on');
   const tab=t.closest('[data-tab]'); if(tab){palTab=tab.dataset.tab;return route()}
+  if(partnerClick(t)) return;
   const s=t.closest('[data-set]'); if(s){S[s.dataset.set]=s.dataset.val;apply();return drawCustom()}
   const a=t.closest('[data-acc]'); if(a){S.accent=a.dataset.acc;apply();return drawCustom()}
   if(t.closest('#resetC')){S={...DEF};apply();return drawCustom()}
   if(t.closest('[data-demo]')) toast('Prototípus: ez a funkció még nincs bekötve.');
 });
+document.addEventListener('change',e=>{
+  const tr=e.target.dataset&&e.target.dataset.ptrust; if(tr){const x=PARTNERS.find(p=>p.id==tr); x.trusted=e.target.checked; touchPartner(x,x.trusted?'Bizalmas körbe téve':'Kivéve a bizalmas körből'); return route()}
+  if(e.target.id==='pTrustF'){pTrust=e.target.checked;return route()}
+});
 document.addEventListener('input',e=>{
+  if(e.target.id==='pSearch'){pQ=e.target.value;const pos=e.target.selectionStart;route();const i=document.getElementById('pSearch');i.focus();i.setSelectionRange(pos,pos);return}
   if(e.target.id==='accIn'){S.accent=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
   if(e.target.id==='subIn'){S.sub=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
 });
