@@ -484,22 +484,23 @@ V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható', bt
 const ROLES = [['megbizo','Megbízó','acc'],['felrako','Felrakó','info'],['lerako','Lerakó','ok'],['alvi','Alvállalkozó','warn']];
 const P_KEY = 'nhc-proto-partners';
 const P_DEMO = [
-  {id:1,name:'Minta Partner A Kft.',roles:['megbizo'],trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
-  {id:2,name:'Minta Partner B Zrt.',roles:['megbizo','felrako'],trusted:false,src:'raklap@ e-mail',first:'10.22.',by:'Rendszer'},
-  {id:3,name:'Minta Partner C Kft.',roles:['megbizo'],trusted:false,src:'Kézi feltöltés',first:'10.24.',by:'Minta Fuvarszervező'},
-  {id:4,name:'Minta Raktár Kft. (Budapest)',roles:['felrako'],trusted:false,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
-  {id:5,name:'Minta Logistik GmbH (München)',roles:['lerako'],trusted:false,src:'raklap@ e-mail',first:'10.23.',by:'Rendszer'},
-  {id:6,name:'Minta Fuvarozó Kft.',roles:['alvi'],trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
-  {id:7,name:'Minta Fuvarozó B Bt.',roles:['alvi'],trusted:false,src:'Kézi feltöltés',first:'10.27.',by:'Minta Admin'},
+  {id:1,name:'Minta Partner A Kft.',role:'megbizo',trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:2,name:'Minta Partner B Zrt.',role:'megbizo',trusted:false,src:'raklap@ e-mail',first:'10.22.',by:'Rendszer'},
+  {id:3,name:'Minta Partner C Kft.',role:'megbizo',trusted:false,src:'Kézi feltöltés',first:'10.24.',by:'Minta Fuvarszervező'},
+  {id:4,name:'Minta Raktár Kft. (Budapest)',role:'felrako',trusted:false,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:5,name:'Minta Logistik GmbH (München)',role:'lerako',trusted:false,src:'raklap@ e-mail',first:'10.23.',by:'Rendszer'},
+  {id:6,name:'Minta Fuvarozó Kft.',role:'alvi',trusted:true,src:'raklap@ e-mail',first:'10.21.',by:'Rendszer'},
+  {id:7,name:'Minta Fuvarozó B Bt.',role:'alvi',trusted:false,src:'Kézi feltöltés',first:'10.27.',by:'Minta Admin'},
 ];
-let PARTNERS = P_DEMO.map(x=>({...x,roles:[...x.roles]}));
+let PARTNERS = P_DEMO.map(x=>({...x}));
 try{const v=JSON.parse(localStorage.getItem(P_KEY)); if(Array.isArray(v)) PARTNERS=v}catch(e){}
+PARTNERS.forEach(x=>{if(!x.role){x.role=(x.roles||[])[0]||'megbizo'; delete x.roles}}); // régi, több szerepes mentés
 const savePartners=()=>{try{localStorage.setItem(P_KEY,JSON.stringify(PARTNERS))}catch(e){}};
 let pRole='all', pQ='', pTrust=false;
 function touchPartner(x,action){x.by=(ME&&ME.name)||'Rendszer'; savePartners(); addLog(action,x.name)}
 V.partners = () => {
-  const list = PARTNERS.filter(x => (pRole==='all'||x.roles.includes(pRole)) && (!pTrust||x.trusted) && x.name.toLowerCase().includes(pQ.toLowerCase()));
-  const cnt = r => PARTNERS.filter(x=>x.roles.includes(r)).length;
+  const list = PARTNERS.filter(x => (pRole==='all'||x.role===pRole) && (!pTrust||x.trusted) && x.name.toLowerCase().includes(pQ.toLowerCase()));
+  const cnt = r => PARTNERS.filter(x=>x.role===r).length;
   return ph('Partnerek','A raklapos levelekből és a jóváhagyásokból épül · szerep és bizalmas kör itt állítható') +
   notice('Új partner automatikusan kerül ide, amikor egy raklapjegy jóváhagyásakor új név jön elő. A jóváhagyó elfogadja vagy javítja a nevet, így egy cég nem lesz kétszer a listában.') +
   `<div class="filters" style="align-items:center">
@@ -507,16 +508,16 @@ V.partners = () => {
     <label style="display:flex;gap:6px;align-items:center;font-size:13px;cursor:pointer"><input type="checkbox" id="pTrustF" ${pTrust?'checked':''}>Csak bizalmas kör</label>
     <input id="pSearch" placeholder="Keresés névre" value="${esc(pQ)}" style="min-width:200px">
   </div>
-  <div class="card" style="margin-bottom:16px"><div class="tw"><table><thead><tr><th>Név</th><th>Szerep (kattintással állítható)</th><th>Bizalmas kör</th><th>Forrás</th><th>Első előfordulás</th><th>Utoljára módosította</th><th></th></tr></thead><tbody>${
+  <div class="card" style="margin-bottom:16px"><div class="tw"><table><thead><tr><th>Név</th><th>Szerep (kattintással váltható)</th><th>Bizalmas kör</th><th>Forrás</th><th>Első előfordulás</th><th>Utoljára módosította</th><th></th></tr></thead><tbody>${
     list.map(x=>`<tr><td><b>${esc(x.name)}</b></td>
-      <td><div style="display:flex;gap:6px;flex-wrap:wrap">${ROLES.map(([k,l,c])=>`<button class="chip rchip ${c} ${x.roles.includes(k)?'on':''}" data-prole="${x.id}|${k}">${l}</button>`).join('')}</div></td>
+      <td><div style="display:flex;gap:6px;flex-wrap:wrap">${ROLES.map(([k,l,c])=>`<button class="chip rchip ${c} ${x.role===k?'on':''}" data-prole="${x.id}|${k}">${l}</button>`).join('')}</div></td>
       <td><label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" data-ptrust="${x.id}" ${x.trusted?'checked':''}>${x.trusted?chip('Bizalmas','acc'):''}</label></td>
       <td class="muted">${esc(x.src)}</td><td class="mono">${esc(x.first)}</td><td>${esc(x.by)}</td>
       <td>${btn('Átnevezés','','sm',`data-prename="${x.id}"`)}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">Nincs találat</td></tr>'
   }</tbody></table></div></div>
   <div class="card"><div class="card-h"><h3>Új partner kézzel</h3></div><div class="card-b" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
     <div class="field" style="margin:0;flex:1;min-width:220px"><label>Név</label><input id="npName" placeholder="Cégnév"></div>
-    <div class="field" style="margin:0"><label>Szerep</label><div style="display:flex;gap:8px;flex-wrap:wrap">${ROLES.map(([k,l])=>`<label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="checkbox" data-nprole="${k}">${l}</label>`).join('')}</div></div>
+    <div class="field" style="margin:0"><label>Szerep</label><div style="display:flex;gap:8px;flex-wrap:wrap">${ROLES.map(([k,l])=>`<label style="display:flex;gap:4px;align-items:center;font-size:13px"><input type="radio" name="nprole" data-nprole="${k}">${l}</label>`).join('')}</div></div>
     <label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" id="npTrust">Bizalmas kör</label>
     ${btn('Hozzáadás','check','pri','id="npAdd"')}
   </div></div>`;
@@ -524,16 +525,15 @@ V.partners = () => {
 function partnerClick(t){
   const f=t.closest('[data-prf]'); if(f){pRole=f.dataset.prf;route();return true}
   const r=t.closest('[data-prole]'); if(r){const [id,k]=r.dataset.prole.split('|'); const x=PARTNERS.find(p=>p.id==id);
-    if(x.roles.includes(k)&&x.roles.length===1){toast('Legalább egy szerep kell.');return true}
-    x.roles=x.roles.includes(k)?x.roles.filter(z=>z!==k):[...x.roles,k];
-    touchPartner(x,'Partner szerepe módosítva: '+x.roles.map(z=>ROLES.find(q=>q[0]===z)[1]).join(', ')); route(); return true}
+    if(x.role===k) return true;
+    x.role=k; touchPartner(x,'Partner szerepe módosítva: '+ROLES.find(q=>q[0]===k)[1]); route(); return true}
   const n=t.closest('[data-prename]'); if(n){const x=PARTNERS.find(p=>p.id==n.dataset.prename); const v=(prompt('Új név:',x.name)||'').trim();
     if(v&&v!==x.name){if(PARTNERS.some(p=>p!==x&&p.name.toLowerCase()===v.toLowerCase())){toast('Ilyen nevű partner már van.');return true}
       const old=x.name; x.name=v; touchPartner(x,'Partner átnevezve ('+old+' → '+v+')'); route()} return true}
-  if(t.closest('#npAdd')){const v=document.getElementById('npName').value.trim(); const roles=[...document.querySelectorAll('[data-nprole]:checked')].map(c=>c.dataset.nprole);
-    if(!v){toast('Add meg a nevet.');return true} if(!roles.length){toast('Válassz legalább egy szerepet.');return true}
+  if(t.closest('#npAdd')){const v=document.getElementById('npName').value.trim(); const c=document.querySelector('[data-nprole]:checked');
+    if(!v){toast('Add meg a nevet.');return true} if(!c){toast('Válassz szerepet.');return true}
     if(PARTNERS.some(p=>p.name.toLowerCase()===v.toLowerCase())){toast('Ilyen nevű partner már van.');return true}
-    const x={id:Math.max(0,...PARTNERS.map(p=>p.id))+1,name:v,roles,trusted:document.getElementById('npTrust').checked,src:'Kézzel felvéve',first:new Date().toLocaleDateString('hu-HU',{month:'2-digit',day:'2-digit'}),by:''};
+    const x={id:Math.max(0,...PARTNERS.map(p=>p.id))+1,name:v,role:c.dataset.nprole,trusted:document.getElementById('npTrust').checked,src:'Kézzel felvéve',first:new Date().toLocaleDateString('hu-HU',{month:'2-digit',day:'2-digit'}),by:''};
     PARTNERS.push(x); touchPartner(x,'Új partner felvéve'); toast('Partner hozzáadva.'); route(); return true}
   return false;
 }
