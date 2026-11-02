@@ -271,7 +271,7 @@ body:not(.locked) .auth{display:none}
       <label class="search"><span data-i="search"></span><input placeholder="Keresés megbízásszám, partner, rendszám…"></label>
       <div class="sp"></div>
       <span class="pill" title="Selexsped VIR szinkron"><span class="dot warn"></span>Selexsped: nincs bekötve</span>
-      <button class="iconbtn" data-demo title="Értesítések"><span data-i="bell"></span><span class="badge">3</span></button>
+      <button class="iconbtn" data-demo title="Értesítések"><span data-i="bell"></span><span class="badge" id="bellCnt">3</span></button>
       <button class="iconbtn" id="logoutBtn" title="Kilépés"><span data-i="logout"></span></button>
       <span class="avatar" id="avatar">NH</span>
     </header>
@@ -397,6 +397,7 @@ V.dash = () => ph('Irányítópult','Mai állapot egy helyen', btn('Szinkron mos
   <div class="grid two" style="margin-top:16px">
     <div class="card"><div class="card-h"><h3>Legutóbbi megbízások</h3><a class="r btn sm" href="#orders">Összes</a></div>${ordersTable(ORDERS.slice(0,5))}</div>
     <div class="card"><div class="card-h"><h3>Riasztások és teendők</h3></div><div class="list">
+      ${GEO_ALERTS.map(a=>alertItem('info','pin','Jármű a felrakó közelében',`${a.pl} · ${a.ord} · ${a.place} · ${fmtKm(a.d)}`,fmtT(a.t))).join('')}
       ${alertItem('bad','alert','ETA kicsúszik az ablakból','MINTA-0002 · várható 18:55, ablak 16:00–18:00','12 perce')}
       ${alertItem('bad','clock','Lejárt raklapjegy-határidő','MINTA-0005 · 20 EUR · Minta Partner D Bt.','tegnap')}
       ${alertItem('info','sparkle','AI-kiolvasás jóváhagyásra vár','MINTA-0008 · bizonytalan: átadó, pecsét','1 órája')}
@@ -477,13 +478,13 @@ function palIssues(){return `<div class="card"><div class="list">
   <div class="li"><span class="ic chip bad" style="padding:0">${ic('alert')}</span><div><div class="t">Raklaphiány: 3 db EUR</div><div class="d">MINTA-0008 · Minta Partner C Kft. · várt 24, átvett 21 · terhelés: alvállalkozó (jóváhagyáskor választva)</div></div><div class="tm" style="display:flex;gap:6px">${btn('Kiszámlázandó tétel','receipt','sm pri')}${btn('Lezárás','check','sm')}</div></div>
   </div></div><p class="muted" style="font-size:12px">A számlázás módja (melyik rendszer, automatikus vagy előkészített) még nyitott kérdés.</p>`}
 
-V.fleet = () => ph('Járműkövetés','Telematika nélkül is használható: kézi státusz és Excel-feltöltés', btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
+V.fleet = () => ph('Járműkövetés',`Telematika nélkül is használható · jelzés, ha egy jármű ${String(GEO_R).replace('.',',')} km-en belül van a felrakóhoz`, btn('Szimuláció: MINTA-106 közeledik','truck','','id="simBtn"')+btn('Excel feltöltése','upload')+btn('Kézi státusz','pin','pri')) +
   `<div class="grid prov" style="margin-bottom:16px">${['WebEye','Multi Alarm','Fleetcore'].map(p=>`<div class="card"><div class="card-b"><div style="display:flex;align-items:center;gap:8px"><h4>${p}</h4><span style="margin-left:auto">${chip('Nincs bekötve')}</span></div><div class="muted" style="font-size:13px">Saját csatlakozó (adapter) · pozíció, ETA, vezetési idő</div></div></div>`).join('')}</div>
   <div class="card" style="margin-bottom:16px"><div class="card-h"><h3>Térkép</h3><label class="r muted" style="font-size:13px;display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="trafficTgl" ${trafficOn?'checked':''}>Forgalom (TomTom)</label></div>
     <div id="fleetMap" class="map"></div>
     <div class="maplegend">${chip('Rendben','ok')}${chip('ETA késés','bad')}${chip('Nincs pozíció','warn')}<span class="tleg" id="tlegend" style="${trafficOn?'':'display:none'}">Forgalom: <i style="background:#2fb36b"></i>szabad <i style="background:#f59e0b"></i>lassú <i style="background:#dc2626"></i>torlódás</span><span>Szaggatott vonal: hátralévő út a lerakóig (légvonal) · a pozíciók mintaadatok · kattints egy sorra a táblázatban</span></div></div>
-  <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th></tr></thead><tbody>${
-  VEH.map(v=>`<tr class="click" data-veh="${v.pl}"><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>'}</td></tr>`).join('')}</tbody></table></div></div>`;
+  <div class="card"><div class="tw"><table><thead><tr><th>Rendszám</th><th>Megbízás</th><th>Utolsó pozíció</th><th>Forrás</th><th>Frissítve</th><th>ETA</th><th>Lerakási ablak</th><th>Riasztás</th><th></th></tr></thead><tbody>${
+  VEH.map(v=>`<tr class="click" data-veh="${v.pl}"><td class="mono"><b>${v.pl}</b></td><td class="mono">${v.ord}</td><td>${v.pos}</td><td>${chip(v.src)}</td><td class="mono">${v.upd}</td><td class="mono">${v.eta}</td><td class="mono">${v.win}</td><td>${alertCell(v)}</td><td>${btn('Helyzet küldése','ext','sm',`data-share="${v.pl}"`)}</td></tr>`).join('')}</tbody></table></div></div>`;
 
 V.partners = () => ph('Partnerek','Partnertörzs a Selexsped VIR-ből (csak olvasás)') +
   `<div class="card"><div class="tw"><table><thead><tr><th>Partner</th><th>Aktív megbízás</th><th>Raklapegyenleg</th><th>Visszaviteli szabály</th></tr></thead><tbody>${
@@ -502,7 +503,8 @@ V.settings = () => ph('Beállítások','Integrációk, felhasználók és megjel
    <div class="card"><div class="card-h"><h3>Térkép és forgalom (TomTom)</h3><span class="r">${ttKey()?chip('Kulcs beállítva','ok'):chip('Nincs kulcs','warn')}</span></div><div class="card-b">
      <div class="field"><label>TomTom API-kulcs</label><input id="ttKeyIn" type="password" autocomplete="off" placeholder="${ttKey()?'•••••••• (beállítva)':'Másold be ide a kulcsot'}">
      <span class="hint">Csak ebben a böngészőben tárolódik, sehova nem kerül fel. A TomTomnál a kulcshoz állítsd be a domain-korlátozást.</span></div>
-     <div style="display:flex;gap:8px;flex-wrap:wrap">${btn('Mentés','check','pri','id="ttSave"')}${btn('Kulcs törlése','x','','id="ttDel"')}</div></div></div>
+     <div style="display:flex;gap:8px;flex-wrap:wrap">${btn('Mentés','check','pri','id="ttSave"')}${btn('Kulcs törlése','x','','id="ttDel"')}</div>
+     <div class="field" style="margin:18px 0 0"><label>Jelzés, ha a jármű ennyire közel ér a felrakóhoz (km)</label><input id="geoRIn" type="number" min="1" max="50" step="0.5" value="${GEO_R}" style="max-width:120px"><span class="hint">Minden felhasználó értesítést kap. Az éles rendszerben push-értesítés is megy a telefonra.</span></div></div></div>
    <div class="card"><div class="card-h"><h3>${ic('paint').replace('<svg','<svg style="width:18px;height:18px;color:var(--accent)"')} Testreszabás</h3><span class="r muted" style="font-size:12px">azonnal látszik</span></div><div class="card-b" id="custom"></div></div>
    </div>`;
 function intg(t,d,s,c){return `<div class="li"><div><div class="t">${t}</div><div class="d">${d}</div></div><span class="tm">${chip(s,c)}</span></div>`}
@@ -552,11 +554,85 @@ function openOrder(no){
 function closeOrder(){document.getElementById('drawerWrap').classList.remove('open')}
 
 /* ---------- Térkép (Leaflet + OpenStreetMap; a forgalmi réteghez szolgáltató kell) ---------- */
+// ll: jármű pozíciója, from: felrakó, dest: lerakó (minta koordináták)
 const VPOS = {
   'MINTA-101':{ll:[48.30,14.29],dest:[48.14,11.58],to:'München'},
   'MINTA-102':{ll:[47.92,17.15],dest:[48.21,16.37],to:'Wien'},
-  'MINTA-103':{ll:[47.53,21.63],dest:[50.06,19.94],to:'Kraków'},
+  'MINTA-103':{ll:[47.53,21.63],from:[47.555,21.585],fromName:'Debrecen',dest:[50.06,19.94],to:'Kraków'},
+  'MINTA-106':{ll:null,from:[46.907,19.691],fromName:'Kecskemét',dest:[46.05,14.51],to:'Ljubljana'},
 };
+
+/* ---------- Felrakó-közelség jelzés ---------- */
+let GEO_R=5; try{GEO_R=Number(localStorage.getItem('nhc-geo-r'))||5}catch(e){}
+const geoFired=new Set(), GEO_ALERTS=[];
+function distKm(a,b){const t=x=>x*Math.PI/180,dLa=t(b[0]-a[0]),dLo=t(b[1]-a[1]);const h=Math.sin(dLa/2)**2+Math.cos(t(a[0]))*Math.cos(t(b[0]))*Math.sin(dLo/2)**2;return 2*6371*Math.asin(Math.sqrt(h))}
+// Csak a még fel nem rakott megbízásoknál figyelünk
+function loadDist(v){const p=VPOS[v.pl], o=ORDERS.find(x=>x.no===v.ord); if(!p||!p.ll||!p.from||!o||o.status!=='Felrakásra vár') return null; return distKm(p.ll,p.from)}
+const fmtKm=d=>d.toFixed(1).replace('.',',')+' km';
+function updateBell(){const b=document.getElementById('bellCnt'); if(b) b.textContent=3+GEO_ALERTS.length}
+function checkGeofence(){
+  VEH.forEach(v=>{
+    const d=loadDist(v), key=v.pl+'|'+v.ord;
+    if(d!=null&&d<=GEO_R&&!geoFired.has(key)){
+      geoFired.add(key); GEO_ALERTS.unshift({t:Date.now(),pl:v.pl,ord:v.ord,d,place:VPOS[v.pl].fromName});
+      updateBell(); toast(`${v.pl} a felrakó közelében (${fmtKm(d)}) · ${v.ord}`);
+    }
+  });
+}
+
+/* ---------- Helyzet küldése ---------- */
+let shareLang='hu', sharePlate=true, shareFor=null;
+function shareText(){
+  const v=VEH.find(x=>x.pl===shareFor), p=VPOS[v.pl], o=ORDERS.find(x=>x.no===v.ord);
+  const map=`https://www.openstreetmap.org/?mlat=${p.ll[0].toFixed(5)}&mlon=${p.ll[1].toFixed(5)}#map=12/${p.ll[0].toFixed(4)}/${p.ll[1].toFixed(4)}`;
+  const eta=v.eta&&v.eta!=='—'?v.eta:null;
+  return shareLang==='hu'
+    ? `Tisztelt Partnerünk!\n\nA(z) ${v.ord} számú megbízás aktuális helyzete:\n${sharePlate?`Jármű: ${v.pl}\n`:''}Pozíció: ${v.pos} (frissítve: ${v.upd})\n${eta?`Várható érkezés: ${eta}\n`:''}Térkép: ${map}\n\nÜdvözlettel:\nNH Cargo`
+    : `Dear Partner,\n\nCurrent status of order ${v.ord}:\n${sharePlate?`Vehicle: ${v.pl}\n`:''}Position: ${v.pos} (updated: ${v.upd})\n${eta?`Estimated arrival: ${eta}\n`:''}Map: ${map}\n\nBest regards,\nNH Cargo`;
+}
+function openShare(pl){
+  const v=VEH.find(x=>x.pl===pl); if(!v||!VPOS[pl]||!VPOS[pl].ll) return toast('Ehhez a járműhöz nincs pozíció, nem küldhető.');
+  shareFor=pl;
+  document.getElementById('drawer').innerHTML=`
+  <div class="dr-h"><div><div class="muted" style="font-size:12px">Helyzet küldése</div><h2 class="mono">${v.pl} · ${v.ord}</h2></div><button class="iconbtn" style="margin-left:auto" id="closeDr">${ic('x')}</button></div>
+  <div class="dr-b">
+    <div class="field" style="margin:0"><label>Nyelv</label><div class="seg"><button data-slang="hu" class="${shareLang==='hu'?'on':''}">Magyar</button><button data-slang="en" class="${shareLang==='en'?'on':''}">English</button></div></div>
+    <label style="display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer"><input type="checkbox" id="shPlate" ${sharePlate?'checked':''}> Rendszám szerepeljen az üzenetben</label>
+    <div class="field" style="margin:0"><label>Üzenet (szerkeszthető)</label><textarea id="shText" rows="11" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px;font:13px/1.5 Inter,system-ui,sans-serif;color:var(--text);resize:vertical">${esc(shareText())}</textarea></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${btn('Másolás','file','pri','id="shCopy"')}${btn('E-mail','ext','','id="shMail"')}${btn('WhatsApp','ext','','id="shWa"')}${navigator.share?btn('Megosztás…','upload','','id="shShare"'):''}</div>
+    <div class="notice" style="margin:0">${ic('alert')}<div>A pozíció a sofőr helyadata: csak az érintett megbízónak, a fuvar idejére küldd. Minden küldés bekerül a naplóba.</div></div>
+  </div>`;
+  document.getElementById('drawerWrap').classList.add('open');
+}
+function logShare(how){addLog(`Helyzet elküldve (${how})`,`${shareFor} · ${VEH.find(x=>x.pl===shareFor).ord}`)}
+
+/* Szimuláció: MINTA-106 Budapest felől közelít a kecskeméti felrakóhoz */
+let simTimer=null;
+function runSim(){
+  clearInterval(simTimer);
+  const v=VEH.find(x=>x.pl==='MINTA-106'), p=VPOS['MINTA-106'], start=[47.12,19.42], steps=18; let i=0;
+  geoFired.delete(v.pl+'|'+v.ord);
+  toast('Szimuláció indul: MINTA-106 közeledik a kecskeméti felrakóhoz.');
+  simTimer=setInterval(()=>{
+    i++; const f=i/steps; p.ll=[start[0]+(p.from[0]-start[0])*f, start[1]+(p.from[1]-start[1])*f];
+    v.pos=`Úton a felrakóhoz (${fmtKm(distKm(p.ll,p.from))})`; v.src='Szimuláció'; v.upd=new Date().toLocaleTimeString('hu-HU',{hour:'2-digit',minute:'2-digit'}); v.st='';
+    const L=leafLib;
+    if(fmap&&L){ if(fmarkers[v.pl]) fmarkers[v.pl].setLatLng(p.ll); else fmarkers[v.pl]=makeMarker(L,v,p); }
+    const row=document.querySelector(`tr[data-veh="${v.pl}"]`);
+    if(row){ row.cells[2].textContent=v.pos; row.cells[3].innerHTML=chip(v.src); row.cells[4].textContent=v.upd; row.cells[7].innerHTML=alertCell(v); }
+    checkGeofence();
+    if(i>=steps) clearInterval(simTimer);
+  },1200);
+}
+function alertCell(v){
+  const d=loadDist(v);
+  if(d!=null&&d<=GEO_R) return chip(`Felrakó közelében · ${fmtKm(d)}`,'info');
+  return v.st==='bad'?chip('ETA késés','bad'):v.st==='warn'?chip('Nincs pozíció','warn'):v.st==='ok'?chip('Rendben','ok'):'<span class="muted">—</span>';
+}
+function makeMarker(L,v,p){
+  const icon=L.divIcon({className:'',html:`<div class="vpin ${v.st}">${ic('truck')}${v.pl}</div>`,iconSize:[0,0],iconAnchor:[0,0]});
+  return L.marker(p.ll,{icon}).addTo(fmap).bindPopup(`<b>${v.pl}</b><br>Megbízás: ${v.ord}<br>Cél: ${p.to}<br>ETA: ${v.eta} · ablak: ${v.win}<br><span style="color:#888">Forrás: ${v.src} · frissítve ${v.upd}</span>`);
+}
 const LEAF='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/';
 let leafLib=null, fmap=null, fmarkers={};
 async function loadLeaflet(){
@@ -580,11 +656,21 @@ async function initMap(){
     fmarkers={}; const pts=[];
     VEH.forEach(v=>{
       const p=VPOS[v.pl]; if(!p) return;
-      const icon=L.divIcon({className:'',html:`<div class="vpin ${v.st}">${ic('truck')}${v.pl}</div>`,iconSize:[0,0],iconAnchor:[0,0]});
-      fmarkers[v.pl]=L.marker(p.ll,{icon}).addTo(fmap).bindPopup(`<b>${v.pl}</b><br>Megbízás: ${v.ord}<br>Cél: ${p.to}<br>ETA: ${v.eta} · ablak: ${v.win}<br><span style="color:#888">Forrás: ${v.src} · frissítve ${v.upd}</span>`);
-      L.polyline([p.ll,p.dest],{color:v.st==='bad'?'#c0392b':'#b8963e',weight:3,dashArray:'6 6',opacity:.85}).addTo(fmap);
-      L.circleMarker(p.dest,{radius:5,color:'#555',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(fmap).bindTooltip('Lerakó: '+p.to);
-      pts.push(p.ll,p.dest);
+      const o=ORDERS.find(x=>x.no===v.ord);
+      if(p.from&&o&&o.status==='Felrakásra vár'){
+        // A felrakó körüli figyelési zóna
+        L.circle(p.from,{radius:GEO_R*1000,color:'#2b6cb0',weight:1,fillOpacity:.07}).addTo(fmap);
+        L.circleMarker(p.from,{radius:5,color:'#2b6cb0',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(fmap).bindTooltip(`Felrakó: ${p.fromName} · ${v.ord}`);
+        pts.push(p.from);
+      }
+      if(!p.ll) return;
+      fmarkers[v.pl]=makeMarker(L,v,p);
+      if(!p.from||!o||o.status!=='Felrakásra vár'){
+        L.polyline([p.ll,p.dest],{color:v.st==='bad'?'#c0392b':'#b8963e',weight:3,dashArray:'6 6',opacity:.85}).addTo(fmap);
+        L.circleMarker(p.dest,{radius:5,color:'#555',fillColor:'#fff',fillOpacity:1,weight:2}).addTo(fmap).bindTooltip('Lerakó: '+p.to);
+        pts.push(p.dest);
+      }
+      pts.push(p.ll);
     });
     await new Promise(r=>requestAnimationFrame(r));
     fmap.invalidateSize();
@@ -871,6 +957,7 @@ function route(){
   document.getElementById('view').innerHTML = view==='pallets'?V.pallets(palTab):V[view]();
   drawCustom(); window.scrollTo(0,0);
   if(view==='fleet') initMap(); else clearInterval(tTimer);
+  checkGeofence(); updateBell();
   const pb=document.getElementById('photoBox'); if(pb) pb.querySelector('img').style.transform=rotT(PHOTO.rot,pb);
 }
 let tt; function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('on'),2200)}
@@ -879,6 +966,14 @@ document.addEventListener('click',e=>{
   const row=t.closest('[data-order]'); if(row) return openOrder(row.dataset.order);
   if(t.closest('#closeDr')||t.id==='scrim') return closeOrder();
   const up=t.closest('[data-upload]'); if(up){upNo=up.dataset.upload||null;return fileIn.click()}
+  const sh=t.closest('[data-share]'); if(sh) return openShare(sh.dataset.share);
+  if(t.closest('#simBtn')) return runSim();
+  const sl=t.closest('[data-slang]'); if(sl){shareLang=sl.dataset.slang;document.querySelectorAll('[data-slang]').forEach(b=>b.classList.toggle('on',b===sl));document.getElementById('shText').value=shareText();return}
+  if(t.id==='shPlate'){sharePlate=t.checked;document.getElementById('shText').value=shareText();return}
+  if(t.closest('#shCopy')){const txt=document.getElementById('shText').value;(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('Üzenet a vágólapra másolva.'),()=>{document.getElementById('shText').select();document.execCommand('copy');toast('Üzenet a vágólapra másolva.')});logShare('másolás');return}
+  if(t.closest('#shMail')){const txt=document.getElementById('shText').value, v=VEH.find(x=>x.pl===shareFor);location.href=`mailto:?subject=${encodeURIComponent((shareLang==='hu'?'Megbízás helyzete: ':'Order status: ')+v.ord)}&body=${encodeURIComponent(txt)}`;logShare('e-mail');return}
+  if(t.closest('#shWa')){window.open('https://wa.me/?text='+encodeURIComponent(document.getElementById('shText').value),'_blank','noopener');logShare('WhatsApp');return}
+  if(t.closest('#shShare')){navigator.share({text:document.getElementById('shText').value}).then(()=>logShare('megosztás'),()=>{});return}
   const vr=t.closest('[data-veh]');
   if(vr){const m=fmarkers[vr.dataset.veh]; if(m&&fmap){document.getElementById('fleetMap').scrollIntoView({behavior:'smooth',block:'center'});fmap.flyTo(m.getLatLng(),9);m.openPopup()} else toast('Ehhez a járműhöz nincs pozíció.'); return}
   if(t.id==='trafficTgl'){
@@ -914,6 +1009,13 @@ document.addEventListener('click',e=>{
   const a=t.closest('[data-acc]'); if(a){S.accent=a.dataset.acc;apply();return drawCustom()}
   if(t.closest('#resetC')){S={...DEF};apply();return drawCustom()}
   if(t.closest('[data-demo]')) toast('Prototípus: ez a funkció még nincs bekötve.');
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='geoRIn'){
+    const r=Math.min(50,Math.max(1,Number(e.target.value)||5)); GEO_R=r; e.target.value=r;
+    try{localStorage.setItem('nhc-geo-r',String(r))}catch(err){}
+    toast(`Felrakó-közelség jelzés: ${String(r).replace('.',',')} km`);
+  }
 });
 document.addEventListener('input',e=>{
   if(e.target.id==='accIn'){S.accent=e.target.value;apply();document.querySelector('pre.out').textContent=JSON.stringify(S,null,2)}
